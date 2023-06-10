@@ -5,7 +5,11 @@ The cars are controlled using a neural network, and are trained using a genetic 
 
 Built with [Rust](https://www.rust-lang.org/) and [Bevy](https://bevyengine.org/) game engine
 
-## Demo
+![gui](/gui.png)
+
+# Demo
+Here's the entire timelapse of the AI learning to drive
+
 [![youtube](https://img.youtube.com/vi/H7RWcNgE-6s/0.jpg)](https://youtu.be/H7RWcNgE-6s)
 
 ## Usage
