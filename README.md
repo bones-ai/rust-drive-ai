@@ -12,6 +12,11 @@ Here's the entire timelapse of the AI learning to drive
 
 [![youtube](https://img.youtube.com/vi/H7RWcNgE-6s/0.jpg)](https://youtu.be/H7RWcNgE-6s)
 
+# Devlog
+Here's a devlog of how this was built
+
+[![youtube](https://img.youtube.com/vi/Pq1sKS-q1sA/0.jpg)](https://youtu.be/Pq1sKS-q1sA)
+
 ## Usage
 - Clone the repo
     ```
@@ -24,6 +29,11 @@ Here's the entire timelapse of the AI learning to drive
     ```
 ## Configurations
 - The project config file is located at `src/configs.rs`
+
+## Forks
+Here's a list of of forks that extend this project, let me know if you have an interesting fork to add:
+- https://gitlab.com/ThibaultLemaire/rust-drive-ai
+
 
 ## Assets
 - [https://www.spriters-resource.com/nes/roadfighter/sheet/57232/](https://www.spriters-resource.com/nes/roadfighter/sheet/57232/)
