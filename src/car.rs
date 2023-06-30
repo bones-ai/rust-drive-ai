@@ -28,6 +28,9 @@ pub struct Brain {
 struct TurnSpeed(f32);
 
 #[derive(Component, Reflect)]
+struct Steer(f32);
+
+#[derive(Component, Reflect)]
 struct Speed(f32);
 
 #[derive(Component)]
@@ -65,8 +68,9 @@ impl Plugin for CarPlugin {
             .register_type::<Speed>()
             .insert_resource(RayCastSensors::default())
             .add_startup_system(setup)
+            .add_system(car_render_system)
             // .add_system(car_manual_input_system)
-            .add_system(car_nn_controlled_system)
+            .add_system(car_nn_controlled_system.in_schedule(CoreSchedule::FixedUpdate))
             // .add_system(car_gas_system)
             // .add_system(car_steer_system)
             .add_system(collision_events_system)
@@ -74,10 +78,7 @@ impl Plugin for CarPlugin {
     }
 }
 
-fn position_based_movement_system(
-    controls: CarControls, 
-    transform: &mut Transform
-) {
+fn position_based_movement_system(controls: CarControls, transform: &mut Transform) {
     let w_key = controls.0;
     let a_key = controls.1;
     let s_key = controls.2;
@@ -88,7 +89,7 @@ fn position_based_movement_system(
     let mut movement_factor = 0.0;
 
     if w_key {
-        movement_factor += 3.5;
+        movement_factor += 13.5;
     }
     if a_key {
         rotation_factor += 0.5;
@@ -97,10 +98,6 @@ fn position_based_movement_system(
     }
 
     transform.rotate_z(rotation_factor * 5.0 * time_step);
-    let movement_direction = transform.rotation * Vec3::Y;
-    let movement_distance = movement_factor;
-    let translation_delta = movement_direction * movement_distance;
-    transform.translation += translation_delta;
 }
 
 fn setup(mut ray_cast_sensors: ResMut<RayCastSensors>) {
@@ -132,8 +129,16 @@ fn collision_events_system(
     }
 }
 
+fn car_render_system(mut car_query: Query<(&mut Transform), With<Car>>) {
+    for mut transform in car_query.iter_mut() {
+        let movement_direction = transform.rotation * Vec3::Y;
+        let movement_distance = 3.5;
+        let translation_delta = movement_direction * movement_distance;
+        transform.translation += translation_delta;
+    }
+}
+
 fn car_nn_controlled_system(
-    time: Res<Time>,
     mut car_query: Query<(&mut Speed, &mut TurnSpeed, &mut Brain, &mut Transform), With<Car>>,
 ) {
     for (mut speed, mut turn_speed, mut brain, mut transform) in car_query.iter_mut() {
@@ -148,13 +153,13 @@ fn car_nn_controlled_system(
         //  nn_out = brain.nn.predict(&brain.ray_inputs).pop().unwrap();
 
         // let w_key = nn_out[0] >= NN_W_ACTIVATION_THRESHOLD;
-        let w_key = true;
+        let w_key = false;
         // let s_key = nn_out[2] >= NN_S_ACTIVATION_THRESHOLD;
         let s_key = false;
         let mut a_key = false;
         let mut d_key = false;
 
-        if nn_out[1] >= 0.5 {
+        if nn_out[0] >= 0.5 {
             a_key = true;
         } else {
             d_key = true;
@@ -182,9 +187,7 @@ fn car_manual_input_system(
         let s_key = keyboard_input.pressed(KeyCode::S);
         let d_key = keyboard_input.pressed(KeyCode::D);
         update_car_input(
-            CarControls(
-                w_key, a_key, s_key, d_key
-            ),
+            CarControls(w_key, a_key, s_key, d_key),
             &mut turn_speed,
             &mut speed,
             &time,

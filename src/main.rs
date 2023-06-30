@@ -1,14 +1,8 @@
-use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    math::vec3,
-    prelude::*,
-    window::{PresentMode, WindowMode},
-};
+use bevy::{math::vec3, prelude::*};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_pancam::{PanCam, PanCamPlugin};
-use bevy_rapier2d::{
-    prelude::{Collider, NoUserData, RapierConfiguration, RapierPhysicsPlugin, RigidBody},
-    render::RapierDebugRenderPlugin,
+use bevy_rapier2d::prelude::{
+    Collider, NoUserData, RapierConfiguration, RapierPhysicsPlugin, RigidBody,
 };
 
 use steering::{
@@ -23,15 +17,14 @@ use steering::{
 
 fn main() {
     App::new()
+        .insert_resource(FixedTime::new_from_secs(0.25))
         .add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         resizable: false,
-                        // mode: WindowMode::Fullscreen,
                         focused: true,
-                        // present_mode: PresentMode::Immediate,
                         resolution: (WINDOW_WIDTH, WINDOW_HEIGHT).into(),
                         ..default()
                     }),
