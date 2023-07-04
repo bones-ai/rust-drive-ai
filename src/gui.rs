@@ -41,7 +41,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // gui
     let font = asset_server.load(FONT_RES_PATH);
     let text_style = TextStyle {
-        font: font.clone(),
+        font,
         font_size: 40.0,
         color: Color::WHITE,
     };
@@ -247,8 +247,8 @@ fn nn_viz_system(mut contexts: EguiContexts, best_brain: Res<BrainToDisplay>) {
 
     // NN viz points
     let points1 = get_nn_viz_points(NUM_RAY_CASTS as usize, tot_height - 100.0);
-    let points2 = get_nn_viz_points(NUM_HIDDEN_NODES as usize, tot_height);
-    let points3 = get_nn_viz_points(NUM_OUPUT_NODES as usize, tot_height - 300.0);
+    let points2 = get_nn_viz_points(NUM_HIDDEN_NODES, tot_height);
+    let points3 = get_nn_viz_points(NUM_OUPUT_NODES, tot_height - 300.0);
     // NN ouput
     let values1 = best_brain.0[0].clone();
     let values2 = best_brain.0[1].clone();
@@ -379,44 +379,45 @@ fn arrow_keys_viz_system(colors: Vec<Color32>) -> Vec<Shape> {
     // wasd buttons
     let x = 75.0;
     let y = 800.0;
-    let mut shapes = Vec::new();
 
-    // w
-    shapes.push(egui::Shape::rect_filled(
-        egui::Rect {
-            min: egui::pos2(100.0 + x, 100.0 + y),
-            max: egui::pos2(150.0 + x, 150.0 + y),
-        },
-        10.0,
-        Color32::GREEN,
-    ));
-    // a
-    shapes.push(egui::Shape::rect_filled(
-        egui::Rect {
-            min: egui::pos2(40.0 + x, 160.0 + y),
-            max: egui::pos2(90.0 + x, 210.0 + y),
-        },
-        10.0,
-        colors[0],
-    ));
-    // s
-    shapes.push(egui::Shape::rect_filled(
-        egui::Rect {
-            min: egui::pos2(100.0 + x, 160.0 + y),
-            max: egui::pos2(150.0 + x, 210.0 + y),
-        },
-        10.0,
-        Color32::RED,
-    ));
-    // d
-    shapes.push(egui::Shape::rect_filled(
-        egui::Rect {
-            min: egui::pos2(160.0 + x, 160.0 + y),
-            max: egui::pos2(210.0 + x, 210.0 + y),
-        },
-        10.0,
-        colors[1],
-    ));
+    let shapes = vec![
+        // w
+        egui::Shape::rect_filled(
+            egui::Rect {
+                min: egui::pos2(100.0 + x, 100.0 + y),
+                max: egui::pos2(150.0 + x, 150.0 + y),
+            },
+            10.0,
+            Color32::GREEN,
+        ),
+        // a
+        egui::Shape::rect_filled(
+            egui::Rect {
+                min: egui::pos2(40.0 + x, 160.0 + y),
+                max: egui::pos2(90.0 + x, 210.0 + y),
+            },
+            10.0,
+            colors[0],
+        ),
+        // s
+        egui::Shape::rect_filled(
+            egui::Rect {
+                min: egui::pos2(100.0 + x, 160.0 + y),
+                max: egui::pos2(150.0 + x, 210.0 + y),
+            },
+            10.0,
+            Color32::RED,
+        ),
+        // d
+        egui::Shape::rect_filled(
+            egui::Rect {
+                min: egui::pos2(160.0 + x, 160.0 + y),
+                max: egui::pos2(210.0 + x, 210.0 + y),
+            },
+            10.0,
+            colors[1],
+        ),
+    ];
 
     shapes
 }

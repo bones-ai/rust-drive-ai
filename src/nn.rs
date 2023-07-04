@@ -77,10 +77,10 @@ impl Layer {
         Self { nodes }
     }
 
-    fn predict(&self, inputs: &Vec<f64>) -> Vec<f64> {
+    fn predict(&self, inputs: &[f64]) -> Vec<f64> {
         let mut layer_results = Vec::new();
         for node in self.nodes.iter() {
-            layer_results.push(self.sigmoid(self.dot_prod(&node, &inputs)));
+            layer_results.push(self.sigmoid(self.dot_prod(node, inputs)));
         }
 
         layer_results
@@ -99,7 +99,7 @@ impl Layer {
         }
     }
 
-    fn dot_prod(&self, node: &Vec<f64>, values: &Vec<f64>) -> f64 {
+    fn dot_prod(&self, node: &[f64], values: &[f64]) -> f64 {
         let mut it = node.iter();
         let mut total = *it.next().unwrap();
         for (weight, value) in it.zip(values.iter()) {

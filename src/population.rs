@@ -110,7 +110,7 @@ fn spawn_cars(
             true => commands.spawn(CarBundle::new(asset_server)),
             false => commands.spawn(CarBundle::with_brain(
                 asset_server,
-                &brains.get(i as usize).unwrap(),
+                brains.get(i as usize).unwrap(),
             )),
         };
     }
@@ -139,5 +139,5 @@ fn calc_fitness(transform: &Transform) -> f32 {
         return 0.1;
     }
 
-    return transform.translation.y / 340.0;
+    transform.translation.y / 340.0
 }

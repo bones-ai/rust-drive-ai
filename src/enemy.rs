@@ -51,21 +51,17 @@ fn update_enemies(
         enemy.is_hit = velocity.angvel != 0.0;
 
         // horizontal motion
-        match enemy_type.as_mut() {
-            EnemyType::Horizontal(direction) => {
-                velocity.linvel += *direction * vec2(30.0, 0.0);
-
-                // direction update
-                // 738 -> 1180 is the road x dir
-                if transform.translation.x >= 1170.0 {
-                    transform.translation.x = 1169.0;
-                    *direction *= -1.0;
-                } else if transform.translation.x <= 742.0 {
-                    transform.translation.x = 743.0;
-                    *direction *= -1.0;
-                }
+        if let EnemyType::Horizontal(direction) = enemy_type.as_mut() {
+            velocity.linvel += *direction * vec2(30.0, 0.0);
+            // direction update
+            // 738 -> 1180 is the road x dir
+            if transform.translation.x >= 1170.0 {
+                transform.translation.x = 1169.0;
+                *direction *= -1.0;
+            } else if transform.translation.x <= 742.0 {
+                transform.translation.x = 743.0;
+                *direction *= -1.0;
             }
-            _ => {}
         }
     }
 }
@@ -170,7 +166,7 @@ impl EnemyType {
         match self {
             EnemyType::Simple => {
                 let choices = ["enemy-blue-1.png", "enemy-yellow-1.png"];
-                return choices[rng.gen_range(0..choices.len())];
+                choices[rng.gen_range(0..choices.len())]
             }
             EnemyType::Horizontal(_) => {
                 let choices = [
@@ -178,7 +174,7 @@ impl EnemyType {
                     "enemy-yellow-2.png",
                     "enemy-yellow-3.png",
                 ];
-                return choices[rng.gen_range(0..choices.len())];
+                choices[rng.gen_range(0..choices.len())]
             }
             EnemyType::Truck => "enemy-truck.png",
         }
