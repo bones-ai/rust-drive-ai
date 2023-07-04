@@ -52,8 +52,7 @@ fn main() {
         // .insert_resource(Msaa::Off)
         .add_startup_system(setup)
         .add_system(bevy::window::close_on_esc)
-        .add_system(camera_follow_system)
-        .add_system(settings_system)
+        .add_systems((camera_follow_system, settings_system))
         .run();
 }
 

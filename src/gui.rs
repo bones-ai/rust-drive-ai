@@ -30,12 +30,14 @@ impl Plugin for GuiPlugin {
             .insert_resource(BrainToDisplay::default())
             .insert_resource(Settings::default())
             .insert_resource(SimStats::default())
-            .add_system(stats_dialog_system)
-            .add_system(generation_count_stats_system)
-            .add_system(max_score_stats_system)
-            .add_system(num_cars_stats_system)
-            .add_system(car_progress_system)
-            .add_system(nn_viz_system);
+            .add_systems((
+                stats_dialog_system,
+                generation_count_stats_system,
+                max_score_stats_system,
+                num_cars_stats_system,
+                car_progress_system,
+                nn_viz_system,
+            ));
     }
 }
 

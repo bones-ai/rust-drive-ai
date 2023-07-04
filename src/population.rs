@@ -15,8 +15,7 @@ impl Plugin for PopulationPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.insert_resource(MaxDistanceTravelled(0.0))
             .add_startup_system(setup)
-            .add_system(population_stats_system)
-            .add_system(generation_reset_system);
+            .add_systems((population_stats_system, generation_reset_system));
     }
 }
 

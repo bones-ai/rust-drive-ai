@@ -29,8 +29,7 @@ pub struct BoundControlTruck;
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup)
-            .add_system(update_enemies)
-            .add_system(bound_control_system);
+            .add_systems((update_enemies, bound_control_system));
     }
 }
 

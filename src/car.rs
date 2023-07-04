@@ -67,12 +67,15 @@ impl Plugin for CarPlugin {
             .register_type::<Speed>()
             .insert_resource(RayCastSensors::default())
             .add_startup_system(setup)
-            // .add_system(car_manual_input_system)
-            .add_system(car_nn_controlled_system)
-            // .add_system(car_gas_system)
-            // .add_system(car_steer_system)
-            .add_system(collision_events_system)
-            .add_system(sensors_system);
+            .add_systems((
+                car_nn_controlled_system,
+                collision_events_system,
+                sensors_system,
+            ));
+
+        // .add_system(car_manual_input_system)
+        // .add_system(car_gas_system)
+        // .add_system(car_steer_system)
     }
 }
 
