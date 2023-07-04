@@ -1,3 +1,5 @@
+#![allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
+
 use bevy::prelude::*;
 use rand::distributions::WeightedIndex;
 use rand::prelude::Distribution;
@@ -106,13 +108,14 @@ fn spawn_cars(
     settings.restart_sim = false;
 
     for i in 0..NUM_AI_CARS {
-        match is_new_nn {
-            true => commands.spawn(CarBundle::new(asset_server)),
-            false => commands.spawn(CarBundle::with_brain(
+        if is_new_nn {
+            commands.spawn(CarBundle::new(asset_server));
+        } else {
+            commands.spawn(CarBundle::with_brain(
                 asset_server,
                 brains.get(i as usize).unwrap(),
-            )),
-        };
+            ));
+        }
     }
 }
 
@@ -120,7 +123,7 @@ fn create_gene_pool(values: Vec<f32>) -> (f32, WeightedIndex<f32>) {
     let mut max_fitness = 0.0;
     let mut weights = Vec::new();
 
-    for v in values.iter() {
+    for v in &values {
         if *v > max_fitness {
             max_fitness = *v;
         }

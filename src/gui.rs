@@ -1,3 +1,5 @@
+#![allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
+
 use bevy::prelude::*;
 use bevy_inspector_egui::{
     bevy_egui::EguiContexts,
@@ -266,10 +268,10 @@ fn nn_viz_system(mut contexts: EguiContexts, best_brain: Res<BrainToDisplay>) {
         .iter()
         .rev()
         .map(|v| {
-            if *v != 1.0 {
-                Color32::GREEN
-            } else {
+            if *v == 1.0 {
                 Color32::RED
+            } else {
+                Color32::GREEN
             }
         })
         .collect();
@@ -337,9 +339,9 @@ fn nn_viz_system(mut contexts: EguiContexts, best_brain: Res<BrainToDisplay>) {
     egui::SidePanel::left("left")
         .min_width(400.0)
         .show(ctx, |ui| {
-            shapes.iter().for_each(|s| {
+            for s in shapes.iter() {
                 ui.painter().add(s.clone());
-            });
+            }
         });
 }
 

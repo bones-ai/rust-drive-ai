@@ -1,3 +1,5 @@
+#![allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
+
 use std::f32::consts::PI;
 
 use bevy::{
@@ -297,7 +299,7 @@ fn sensors_system(
         // let rot = velocity.linvel.y.atan2(velocity.linvel.x) - PI / 2.0;
         let rot = transform.rotation.z;
         // let rot = turn_speed.0;
-        for (mut x, mut y) in ray_cast_sensors.0.iter() {
+        for (mut x, mut y) in &ray_cast_sensors.0 {
             (x, y) = rotate_point(x, y, rot);
             let dest_vec = vec2(x, y);
             let end_point = calculate_endpoint(ray_pos, dest_vec, RAYCAST_MAX_TOI);

@@ -1,3 +1,5 @@
+#![allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
+
 use bevy::{
     math::{vec2, vec3},
     prelude::*,

@@ -1,3 +1,5 @@
+#![allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
+
 use rand::Rng;
 
 const BRAIN_MUTATION_RATE: f32 = 5.0;
@@ -16,13 +18,10 @@ struct Layer {
 
 impl Net {
     pub fn new(layer_sizes: Vec<usize>) -> Self {
-        if layer_sizes.len() < 2 {
-            panic!("Need at least 2 layers");
-        }
-        for &size in layer_sizes.iter() {
-            if size < 1 {
-                panic!("Empty layers not allowed");
-            }
+        assert!(layer_sizes.len() >= 2, "Need at least 2 layers");
+
+        for &size in &layer_sizes {
+            assert!(size >= 1, "Empty layers not allowed");
         }
 
         let mut layers = Vec::new();
@@ -41,9 +40,7 @@ impl Net {
     }
 
     pub fn predict(&self, inputs: &Vec<f64>) -> Vec<Vec<f64>> {
-        if inputs.len() != self.n_inputs {
-            panic!("Bad input size");
-        }
+        assert!(inputs.len() == self.n_inputs, "Bad input size");
 
         let mut outputs = Vec::new();
         outputs.push(inputs.clone());
@@ -67,7 +64,7 @@ impl Layer {
 
         for _ in 0..layer_size {
             let mut node: Vec<f64> = Vec::new();
-            for _ in 0..prev_layer_size + 1 {
+            for _ in 0..=prev_layer_size {
                 let random_weight: f64 = rng.gen_range(-1.0f64..1.0f64);
                 node.push(random_weight);
             }
@@ -79,7 +76,7 @@ impl Layer {
 
     fn predict(&self, inputs: &[f64]) -> Vec<f64> {
         let mut layer_results = Vec::new();
-        for node in self.nodes.iter() {
+        for node in &self.nodes {
             layer_results.push(self.sigmoid(self.dot_prod(node, inputs)));
         }
 
@@ -88,7 +85,7 @@ impl Layer {
 
     fn mutate(&mut self) {
         let mut rng = rand::thread_rng();
-        for n in self.nodes.iter_mut() {
+        for n in &mut self.nodes {
             for val in n.iter_mut() {
                 if rng.gen_range(0.0..1.0) >= BRAIN_MUTATION_RATE {
                     continue;

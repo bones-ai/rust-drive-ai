@@ -1,11 +1,10 @@
-use bevy::{
-    math::vec3,
-    prelude::*,
-};
+#![allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
+
+use bevy::{math::vec3, prelude::*};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_pancam::{PanCam, PanCamPlugin};
-use bevy_rapier2d::{
-    prelude::{Collider, NoUserData, RapierConfiguration, RapierPhysicsPlugin, RigidBody},
+use bevy_rapier2d::prelude::{
+    Collider, NoUserData, RapierConfiguration, RapierPhysicsPlugin, RigidBody,
 };
 
 use steering::{
@@ -15,7 +14,8 @@ use steering::{
 };
 use steering::{
     enemy::{spawn_bound_trucks, EnemyPlugin},
-    MaxDistanceTravelled, NUM_ROAD_TILES, ROAD_SPRITE_H, ROAD_SPRITE_W, SPRITE_SCALE_FACTOR, Settings, SimStats, WINDOW_HEIGHT, WINDOW_WIDTH,
+    MaxDistanceTravelled, Settings, SimStats, NUM_ROAD_TILES, ROAD_SPRITE_H, ROAD_SPRITE_W,
+    SPRITE_SCALE_FACTOR, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 
 fn main() {
