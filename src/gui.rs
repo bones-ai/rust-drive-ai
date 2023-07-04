@@ -273,6 +273,7 @@ fn nn_viz_system(mut contexts: EguiContexts, best_brain: Res<BrainToDisplay>) {
             } else {
                 Color32::GREEN
             }
+            // interpolate_colors(Color32::RED, Color32::GREEN, *v)
         })
         .collect();
     let colors2: Vec<Color32> = values2
@@ -292,7 +293,6 @@ fn nn_viz_system(mut contexts: EguiContexts, best_brain: Res<BrainToDisplay>) {
     } else {
         colors3[1] = Color32::GREEN;
     }
-    // TODO: Color interpolation
 
     // layer 1 -> 2 lines
     for (p1, c1) in points1.iter().zip(colors1.iter()) {
@@ -451,3 +451,10 @@ fn get_nn_viz_points(n: usize, tot_size: f32) -> Vec<f32> {
 fn are_colors_equad(first: Color32, second: Color32) -> bool {
     (first.g() == 255 && second.g() == 255) || (first.r() == 255 && second.r() == 255)
 }
+
+// fn interpolate_colors(first: Color32, second: Color32, t: f64) -> Color32 {
+//     let r = (first.r() as f64 * (1.0 - t) + second.r() as f64 * t) as u8;
+//     let g = (first.g() as f64 * (1.0 - t) + second.g() as f64 * t) as u8;
+//     let b = (first.b() as f64 * (1.0 - t) + second.b() as f64 * t) as u8;
+//     Color32::from_rgb(r, g, b)
+// }
