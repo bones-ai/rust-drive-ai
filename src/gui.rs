@@ -290,13 +290,7 @@ fn nn_viz_system(mut contexts: EguiContexts, best_brain: Res<BrainToDisplay>) {
     } else {
         colors3[1] = Color32::GREEN;
     }
-
-    // if values3[0] >= NN_W_ACTIVATION_THRESHOLD {
-    //     colors3[0] = Color32::GREEN;
-    // }
-    // if values3[2] >= NN_S_ACTIVATION_THRESHOLD {
-    //     colors3[2] = Color32::GREEN;
-    // }
+    // TODO: Color interpolation
 
     // layer 1 -> 2 lines
     for (p1, c1) in points1.iter().zip(colors1.iter()) {
