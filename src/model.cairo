@@ -2,6 +2,8 @@
 mod model {
     use cubit::types::FixedTrait;
 
+    use dojo::world::Context;
+
     use drive_ai::car::Sensors;
     use drive_ai::car::Controls;
 

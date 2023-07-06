@@ -16,12 +16,12 @@ struct Car {
     model: felt252,
 }
 
-#[derive(Serde)]
+#[derive(Serde, Drop)]
 struct Sensors {
     rays: Array<Fixed>,
 }
 
-#[derive(Serde)]
+#[derive(Serde, Drop)]
 struct Controls {
     steer: Fixed,
     acc: Fixed,
@@ -46,7 +46,7 @@ mod spawn {
             ctx.world, ctx.world.uuid().into(), (Car {
                 position,
                 steer: FixedTrait::new(0_u128, false),
-                velocity: FixedTrait::new(50_u128, false),
+                speed: FixedTrait::new(50_u128, false),
                 driver: ctx.origin,
                 model
             })
