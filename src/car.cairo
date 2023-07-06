@@ -21,6 +21,12 @@ struct Sensors {
     rays: Array<Fixed>,
 }
 
+#[derive(Serde)]
+struct Controls {
+    steer: Fixed,
+    acc: Fixed,
+}
+
 #[system]
 mod spawn {
     use traits::Into;
