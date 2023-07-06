@@ -9,7 +9,7 @@ struct Car {
     // Vehicle steer in degrees -90 <= s <= 90
     steer: Fixed,
     // Vehicle velocity 0 <= v <= 100
-    velocity: Fixed,
+    speed: Fixed,
     // Vehicle owner
     driver: ContractAddress,
     // Model system name
@@ -67,8 +67,8 @@ mod drive {
         let car = get!(ctx.world, car.into(), Car);
         
         // 1. Compute sensors
-        // 2. Run neural network forward pass
-        // execute!(ctx.world, car.model, Sensors.serialize());
+        // 2. Run model forward pass
+        // let controls = execute!(ctx.world, car.model, Sensors.serialize());
         // 3. Update car state
         // 4. Run collision detection
     }

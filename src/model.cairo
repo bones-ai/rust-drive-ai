@@ -7,7 +7,7 @@ mod model {
 
     fn execute(ctx: Context, sensors: Sensors) -> Controls {
         // TODO: Run model and predict controls
-        
+
         Controls {
             steer: FixedTrait::new(0_u128, false),
             acc: FixedTrait::new(0_u128, false),

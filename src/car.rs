@@ -69,12 +69,13 @@ impl Plugin for CarPlugin {
             .insert_resource(RayCastSensors::default())
             .add_startup_system(setup)
             .add_system(car_render_system)
+            .add_system(sync_onchain_system)
             // .add_system(car_manual_input_system)
             .add_system(car_nn_controlled_system.in_schedule(CoreSchedule::FixedUpdate))
+            .add_system(sensors_system.in_schedule(CoreSchedule::FixedUpdate))
+            .add_system(collision_events_system.in_schedule(CoreSchedule::FixedUpdate));
             // .add_system(car_gas_system)
             // .add_system(car_steer_system)
-            .add_system(collision_events_system)
-            .add_system(sensors_system);
     }
 }
 
