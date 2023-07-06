@@ -1,13 +1,15 @@
 [package]
-name = "drive-ai"
+name = "drive_ai"
 version = "0.1.0"
-cairo-version = "2.0.0-rc6"
+cairo-version = "2.0.1"
 
 [cairo]
 sierra-replace-ids = true
 
 [dependencies]
 dojo = { git = "https://github.com/dojoengine/dojo" }
+cubit = {git = "https://github.com/tarrencev/cubit" }
+# orion = { git = "https://github.com/gizatechxyz/onnx-cairo" }
 
 [[target.dojo]]
 

@@ -17,10 +17,10 @@ pub const CAR_THRUST: f32 = 5.0 * 100.0;
 pub const MAX_SPEED: f32 = 10.0 * 300.0;
 pub const FRICTION: f32 = 30.0 * 100.0;
 pub const MIN_SPEED_TO_STEER: f32 = 50.0;
-pub const NUM_RAY_CASTS: u32 = 5;
+pub const NUM_RAY_CASTS: u32 = 10;
 pub const RAYCAST_SPREAD_ANGLE_DEG: f32 = 130.0;
 pub const RAYCAST_START_ANGLE_DEG: f32 = 20.0;
-pub const RAYCAST_MAX_TOI: f32 = 200.0;
+pub const RAYCAST_MAX_TOI: f32 = 250.0;
 // pub const RAYCAST_THICKNESS: f32 = 0.3;
 
 /// NN
