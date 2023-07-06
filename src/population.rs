@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use rand::distributions::WeightedIndex;
 use rand::prelude::Distribution;
 
-use crate::car::{Brain, Car, CarBundle, Fitness};
+use crate::car::{Car, CarBundle, Fitness, Model};
 use crate::enemy::{spawn_bound_trucks, spawn_enemies, BoundControlTruck, Enemy};
 use crate::nn::Net;
 use crate::*;
@@ -26,7 +26,7 @@ fn population_stats_system(
     mut sim_stats: ResMut<SimStats>,
     mut max_distance_travelled: ResMut<MaxDistanceTravelled>,
     mut brain_on_display: ResMut<BrainToDisplay>,
-    mut query: Query<(&Transform, &Brain, &mut Fitness), With<Car>>,
+    mut query: Query<(&Transform, &Model, &mut Fitness), With<Car>>,
 ) {
     let mut max_fitness = 0.0;
     sim_stats.num_cars_alive = query.iter().len();
@@ -47,7 +47,7 @@ fn generation_reset_system(
     asset_server: Res<AssetServer>,
     mut settings: ResMut<Settings>,
     mut sim_stats: ResMut<SimStats>,
-    cars_query: Query<(Entity, &Brain, &Fitness)>,
+    cars_query: Query<(Entity, &Model, &Fitness)>,
     cars_count_query: Query<With<Car>>,
     enemy_query: Query<Entity, With<Enemy>>,
     bounds_truck_query: Query<Entity, With<BoundControlTruck>>,
@@ -99,18 +99,18 @@ fn spawn_cars(
     commands: &mut Commands,
     asset_server: &AssetServer,
     settings: &mut Settings,
-    brains: Option<Vec<Net>>,
+    models: Option<Vec<Net>>,
 ) {
-    let brains = brains.unwrap_or(Vec::new());
-    let is_new_nn = brains.is_empty() || settings.restart_sim;
+    let models = models.unwrap_or(Vec::new());
+    let is_new_nn = models.is_empty() || settings.restart_sim;
     settings.restart_sim = false;
 
     for i in 0..NUM_AI_CARS {
         match is_new_nn {
             true => commands.spawn(CarBundle::new(asset_server)),
-            false => commands.spawn(CarBundle::with_brain(
+            false => commands.spawn(CarBundle::with_model(
                 asset_server,
-                &brains.get(i as usize).unwrap(),
+                &models.get(i as usize).unwrap(),
             )),
         };
     }

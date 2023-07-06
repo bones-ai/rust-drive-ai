@@ -17,7 +17,7 @@ pub struct CarPlugin;
 pub struct Car;
 
 #[derive(Component)]
-pub struct Brain {
+pub struct Model {
     pub nn: Net,
     pub nn_outputs: Vec<Vec<f64>>,
 
@@ -47,8 +47,7 @@ pub struct CarBundle {
     sprite_bundle: SpriteBundle,
     car: Car,
     fitness: Fitness,
-    brain: Brain,
-    turn_speed: TurnSpeed,
+    model: Model,
     speed: Speed,
     velocity: Velocity,
     mass: ColliderMassProperties,
@@ -69,29 +68,19 @@ impl Plugin for CarPlugin {
             .insert_resource(RayCastSensors::default())
             .add_startup_system(setup)
             .add_system(car_render_system)
-            .add_system(sync_onchain_system)
-            // .add_system(car_manual_input_system)
-            .add_system(car_nn_controlled_system.in_schedule(CoreSchedule::FixedUpdate))
-            .add_system(sensors_system.in_schedule(CoreSchedule::FixedUpdate))
-            .add_system(collision_events_system.in_schedule(CoreSchedule::FixedUpdate));
-            // .add_system(car_gas_system)
-            // .add_system(car_steer_system)
+            .add_system(collision_events_system)
+            .add_system(sensors_system)
+            .add_system(car_nn_controlled_system.in_schedule(CoreSchedule::FixedUpdate));
     }
 }
 
 fn position_based_movement_system(controls: CarControls, transform: &mut Transform) {
-    let w_key = controls.0;
     let a_key = controls.1;
-    let s_key = controls.2;
     let d_key = controls.3;
 
     let time_step = 1.0 / 60.0;
     let mut rotation_factor = 0.0;
-    let mut movement_factor = 0.0;
 
-    if w_key {
-        movement_factor += 13.5;
-    }
     if a_key {
         rotation_factor += 0.5;
     } else if d_key {
@@ -130,7 +119,7 @@ fn collision_events_system(
     }
 }
 
-fn car_render_system(mut car_query: Query<(&mut Transform), With<Car>>) {
+fn car_render_system(mut car_query: Query<&mut Transform, With<Car>>) {
     for mut transform in car_query.iter_mut() {
         let movement_direction = transform.rotation * Vec3::Y;
         let movement_distance = 3.5;
@@ -140,18 +129,17 @@ fn car_render_system(mut car_query: Query<(&mut Transform), With<Car>>) {
 }
 
 fn car_nn_controlled_system(
-    mut car_query: Query<(&mut Speed, &mut TurnSpeed, &mut Brain, &mut Transform), With<Car>>,
+    mut car_query: Query<(&mut Speed, &mut Model, &mut Transform), With<Car>>,
 ) {
-    for (mut speed, mut turn_speed, mut brain, mut transform) in car_query.iter_mut() {
-        if brain.ray_inputs.is_empty() {
+    for (mut speed, mut model, mut transform) in car_query.iter_mut() {
+        if model.ray_inputs.is_empty() {
             speed.0 = 0.0;
-            turn_speed.0 = 0.0;
             return;
         }
 
-        brain.nn_outputs = brain.nn.predict(&brain.ray_inputs);
-        let nn_out = brain.nn_outputs[NUM_OUPUT_NODES - 1].clone();
-        //  nn_out = brain.nn.predict(&brain.ray_inputs).pop().unwrap();
+        model.nn_outputs = model.nn.predict(&model.ray_inputs);
+        let nn_out = model.nn_outputs[NUM_OUPUT_NODES - 1].clone();
+        //  nn_out = model.nn.predict(&model.ray_inputs).pop().unwrap();
 
         // let w_key = nn_out[0] >= NN_W_ACTIVATION_THRESHOLD;
         let w_key = false;
@@ -166,110 +154,7 @@ fn car_nn_controlled_system(
             d_key = true;
         }
 
-        // update_car_input(
-        //     CarControls(w_key, a_key, s_key, d_key),
-        //     &mut turn_speed,
-        //     &mut speed,
-        //     &time,
-        // );
         position_based_movement_system(CarControls(w_key, a_key, s_key, d_key), &mut transform);
-    }
-}
-
-#[allow(dead_code)]
-fn car_manual_input_system(
-    time: Res<Time>,
-    keyboard_input: Res<Input<KeyCode>>,
-    mut car_query: Query<(&mut Speed, &mut TurnSpeed, &mut Transform), With<Car>>,
-) {
-    for (mut speed, mut turn_speed, mut transform) in car_query.iter_mut() {
-        let w_key = keyboard_input.pressed(KeyCode::W);
-        let a_key = keyboard_input.pressed(KeyCode::A);
-        let s_key = keyboard_input.pressed(KeyCode::S);
-        let d_key = keyboard_input.pressed(KeyCode::D);
-        update_car_input(
-            CarControls(w_key, a_key, s_key, d_key),
-            &mut turn_speed,
-            &mut speed,
-            &time,
-        );
-        position_based_movement_system(CarControls(w_key, a_key, s_key, d_key), &mut transform);
-    }
-}
-
-fn update_car_input(
-    controls: CarControls,
-    turn_speed: &mut TurnSpeed,
-    speed: &mut Speed,
-    time: &Time,
-) {
-    let w_key = controls.0;
-    let a_key = controls.1;
-    let s_key = controls.2;
-    let d_key = controls.3;
-
-    turn_speed.0 = if a_key {
-        TURN_SPEED
-    } else if d_key {
-        -TURN_SPEED
-    } else {
-        0.0
-    };
-
-    // Friction code from: https://github.com/Rust-Ninja-Sabi/bevyastro
-    speed.0 = if s_key {
-        if speed.0.abs() <= 30.0 {
-            0.0
-        } else {
-            speed.0 - FRICTION * time.delta_seconds() * 1.2
-        }
-    } else if w_key {
-        speed.0 + CAR_THRUST * time.delta_seconds()
-    } else {
-        if speed.0.abs() <= 30.0 {
-            // Avoid speed from over shooting
-            // and be non zero all the time
-            0.0
-        } else if speed.0 > 0.0 {
-            speed.0 - FRICTION * time.delta_seconds()
-        } else if speed.0 < 0.0 {
-            speed.0 + FRICTION * time.delta_seconds()
-        } else {
-            0.0
-        }
-    };
-
-    speed.0 = speed.0.clamp(-MAX_SPEED + MAX_SPEED / 2.0, MAX_SPEED);
-}
-
-fn car_gas_system(
-    time: Res<Time>,
-    mut query: Query<(&Transform, &Speed, &mut Velocity), With<Car>>,
-) {
-    for (transform, speed, mut velocity) in query.iter_mut() {
-        if speed.0 == 0.0 {
-            let direction = transform.local_y();
-            velocity.linvel = vec2(direction.x, direction.y) * 0.0000001;
-            return;
-        }
-
-        let translation_delta = transform.local_y() * speed.0;
-        velocity.linvel =
-            vec2(translation_delta.x, translation_delta.y) * 25.0 * time.delta_seconds();
-    }
-}
-
-fn car_steer_system(
-    time: Res<Time>,
-    mut query: Query<(&Speed, &TurnSpeed, &mut Velocity), With<Car>>,
-) {
-    for (speed, turn_speed, mut velocity) in query.iter_mut() {
-        if speed.0.abs() < MIN_SPEED_TO_STEER {
-            velocity.angvel = 0.0;
-            return;
-        }
-
-        velocity.angvel = turn_speed.0 * time.delta_seconds() * TURN_SPEED;
     }
 }
 
@@ -296,9 +181,9 @@ fn sensors_system(
     settings: Res<Settings>,
     ray_cast_sensors: Res<RayCastSensors>,
     rapier_context: Res<RapierContext>,
-    mut query: Query<(&Transform, &Velocity, &mut Brain, &Speed, &TurnSpeed), With<Car>>,
+    mut query: Query<(&Transform, &mut Model), With<Car>>,
 ) {
-    for (transform, velocity, mut brain, speed, turn_speed) in query.iter_mut() {
+    for (transform, mut model) in query.iter_mut() {
         let raycast_filter = CollisionGroups {
             memberships: Group::GROUP_1,
             filters: Group::GROUP_2,
@@ -308,9 +193,7 @@ fn sensors_system(
         let mut nn_inputs = Vec::new();
 
         // Ray casts
-        // let rot = velocity.linvel.y.atan2(velocity.linvel.x) - PI / 2.0;
         let rot = transform.rotation.z;
-        // let rot = turn_speed.0;
         for (mut x, mut y) in ray_cast_sensors.0.iter() {
             (x, y) = rotate_point(x, y, rot);
             let dest_vec = vec2(x, y);
@@ -339,7 +222,7 @@ fn sensors_system(
             }
         }
 
-        brain.ray_inputs = nn_inputs;
+        model.ray_inputs = nn_inputs;
     }
 }
 
@@ -379,7 +262,7 @@ impl CarBundle {
             },
             car: Car,
             fitness: Fitness(0.0),
-            brain: Brain {
+            model: Model {
                 nn: Net::new(vec![
                     NUM_RAY_CASTS as usize,
                     NUM_HIDDEN_NODES,
@@ -388,7 +271,6 @@ impl CarBundle {
                 ray_inputs: Vec::new(),
                 nn_outputs: Vec::new(),
             },
-            turn_speed: TurnSpeed(0.0),
             speed: Speed(0.0),
             velocity: Velocity::zero(),
             mass: ColliderMassProperties::Mass(3000.0),
@@ -408,9 +290,9 @@ impl CarBundle {
         }
     }
 
-    pub fn with_brain(asset_server: &AssetServer, brain: &Net) -> Self {
+    pub fn with_model(asset_server: &AssetServer, model: &Net) -> Self {
         let mut car = CarBundle::new(asset_server);
-        car.brain.nn = brain.clone();
+        car.model.nn = model.clone();
         car
     }
 }
