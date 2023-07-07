@@ -1,14 +1,10 @@
-use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    math::vec3,
-    prelude::*,
-    window::{PresentMode, WindowMode},
-};
+#![allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
+
+use bevy::{math::vec3, prelude::*};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_pancam::{PanCam, PanCamPlugin};
-use bevy_rapier2d::{
-    prelude::{Collider, NoUserData, RapierConfiguration, RapierPhysicsPlugin, RigidBody},
-    render::RapierDebugRenderPlugin,
+use bevy_rapier2d::prelude::{
+    Collider, NoUserData, RapierConfiguration, RapierPhysicsPlugin, RigidBody,
 };
 
 use steering::{
@@ -18,7 +14,8 @@ use steering::{
 };
 use steering::{
     enemy::{spawn_bound_trucks, EnemyPlugin},
-    *,
+    MaxDistanceTravelled, Settings, SimStats, NUM_ROAD_TILES, ROAD_SPRITE_H, ROAD_SPRITE_W,
+    SPRITE_SCALE_FACTOR, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 
 fn main() {
@@ -55,8 +52,7 @@ fn main() {
         // .insert_resource(Msaa::Off)
         .add_startup_system(setup)
         .add_system(bevy::window::close_on_esc)
-        .add_system(camera_follow_system)
-        .add_system(settings_system)
+        .add_systems((camera_follow_system, settings_system))
         .run();
 }
 

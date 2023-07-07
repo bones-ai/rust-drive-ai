@@ -1,3 +1,5 @@
+#![allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
+
 use std::f32::consts::PI;
 
 use bevy::{
@@ -65,22 +67,22 @@ impl Plugin for CarPlugin {
             .register_type::<Speed>()
             .insert_resource(RayCastSensors::default())
             .add_startup_system(setup)
-            // .add_system(car_manual_input_system)
-            .add_system(car_nn_controlled_system)
-            // .add_system(car_gas_system)
-            // .add_system(car_steer_system)
-            .add_system(collision_events_system)
-            .add_system(sensors_system);
+            .add_systems((
+                car_nn_controlled_system,
+                collision_events_system,
+                sensors_system,
+            ));
+
+        // .add_system(car_manual_input_system)
+        // .add_system(car_gas_system)
+        // .add_system(car_steer_system)
     }
 }
 
-fn position_based_movement_system(
-    controls: CarControls, 
-    transform: &mut Transform
-) {
+fn position_based_movement_system(controls: CarControls, transform: &mut Transform) {
     let w_key = controls.0;
     let a_key = controls.1;
-    let s_key = controls.2;
+    // let s_key = controls.2;
     let d_key = controls.3;
 
     let time_step = 1.0 / 60.0;
@@ -122,18 +124,15 @@ fn collision_events_system(
     mut collision_events: EventReader<CollisionEvent>,
 ) {
     for collision_event in collision_events.iter() {
-        match collision_event {
-            CollisionEvent::Started(entity1, entity2, _) => {
-                commands.entity(*entity2).remove::<Car>();
-                commands.entity(*entity1).remove::<Car>();
-            }
-            _ => {}
+        if let CollisionEvent::Started(entity1, entity2, _) = collision_event {
+            commands.entity(*entity2).remove::<Car>();
+            commands.entity(*entity1).remove::<Car>();
         }
     }
 }
 
 fn car_nn_controlled_system(
-    time: Res<Time>,
+    // time: Res<Time>,
     mut car_query: Query<(&mut Speed, &mut TurnSpeed, &mut Brain, &mut Transform), With<Car>>,
 ) {
     for (mut speed, mut turn_speed, mut brain, mut transform) in car_query.iter_mut() {
@@ -182,9 +181,7 @@ fn car_manual_input_system(
         let s_key = keyboard_input.pressed(KeyCode::S);
         let d_key = keyboard_input.pressed(KeyCode::D);
         update_car_input(
-            CarControls(
-                w_key, a_key, s_key, d_key
-            ),
+            CarControls(w_key, a_key, s_key, d_key),
             &mut turn_speed,
             &mut speed,
             &time,
@@ -221,53 +218,51 @@ fn update_car_input(
         }
     } else if w_key {
         speed.0 + CAR_THRUST * time.delta_seconds()
+    } else if speed.0.abs() <= 30.0 {
+        // Avoid speed from over shooting
+        // and be non zero all the time
+        0.0
+    } else if speed.0 > 0.0 {
+        speed.0 - FRICTION * time.delta_seconds()
+    } else if speed.0 < 0.0 {
+        speed.0 + FRICTION * time.delta_seconds()
     } else {
-        if speed.0.abs() <= 30.0 {
-            // Avoid speed from over shooting
-            // and be non zero all the time
-            0.0
-        } else if speed.0 > 0.0 {
-            speed.0 - FRICTION * time.delta_seconds()
-        } else if speed.0 < 0.0 {
-            speed.0 + FRICTION * time.delta_seconds()
-        } else {
-            0.0
-        }
+        0.0
     };
 
     speed.0 = speed.0.clamp(-MAX_SPEED + MAX_SPEED / 2.0, MAX_SPEED);
 }
 
-fn car_gas_system(
-    time: Res<Time>,
-    mut query: Query<(&Transform, &Speed, &mut Velocity), With<Car>>,
-) {
-    for (transform, speed, mut velocity) in query.iter_mut() {
-        if speed.0 == 0.0 {
-            let direction = transform.local_y();
-            velocity.linvel = vec2(direction.x, direction.y) * 0.0000001;
-            return;
-        }
+// fn car_gas_system(
+//     time: Res<Time>,
+//     mut query: Query<(&Transform, &Speed, &mut Velocity), With<Car>>,
+// ) {
+//     for (transform, speed, mut velocity) in query.iter_mut() {
+//         if speed.0 == 0.0 {
+//             let direction = transform.local_y();
+//             velocity.linvel = vec2(direction.x, direction.y) * 0.0000001;
+//             return;
+//         }
 
-        let translation_delta = transform.local_y() * speed.0;
-        velocity.linvel =
-            vec2(translation_delta.x, translation_delta.y) * 25.0 * time.delta_seconds();
-    }
-}
+//         let translation_delta = transform.local_y() * speed.0;
+//         velocity.linvel =
+//             vec2(translation_delta.x, translation_delta.y) * 25.0 * time.delta_seconds();
+//     }
+// }
 
-fn car_steer_system(
-    time: Res<Time>,
-    mut query: Query<(&Speed, &TurnSpeed, &mut Velocity), With<Car>>,
-) {
-    for (speed, turn_speed, mut velocity) in query.iter_mut() {
-        if speed.0.abs() < MIN_SPEED_TO_STEER {
-            velocity.angvel = 0.0;
-            return;
-        }
+// fn car_steer_system(
+//     time: Res<Time>,
+//     mut query: Query<(&Speed, &TurnSpeed, &mut Velocity), With<Car>>,
+// ) {
+//     for (speed, turn_speed, mut velocity) in query.iter_mut() {
+//         if speed.0.abs() < MIN_SPEED_TO_STEER {
+//             velocity.angvel = 0.0;
+//             return;
+//         }
 
-        velocity.angvel = turn_speed.0 * time.delta_seconds() * TURN_SPEED;
-    }
-}
+//         velocity.angvel = turn_speed.0 * time.delta_seconds() * TURN_SPEED;
+//     }
+// }
 
 fn draw_ray_cast(
     lines: &mut DebugLines,
@@ -294,7 +289,7 @@ fn sensors_system(
     rapier_context: Res<RapierContext>,
     mut query: Query<(&Transform, &Velocity, &mut Brain, &Speed, &TurnSpeed), With<Car>>,
 ) {
-    for (transform, velocity, mut brain, speed, turn_speed) in query.iter_mut() {
+    for (transform, _velocity, mut brain, _speed, _turn_speed) in query.iter_mut() {
         let raycast_filter = CollisionGroups {
             memberships: Group::GROUP_1,
             filters: Group::GROUP_2,
@@ -307,7 +302,7 @@ fn sensors_system(
         // let rot = velocity.linvel.y.atan2(velocity.linvel.x) - PI / 2.0;
         let rot = transform.rotation.z;
         // let rot = turn_speed.0;
-        for (mut x, mut y) in ray_cast_sensors.0.iter() {
+        for (mut x, mut y) in &ray_cast_sensors.0 {
             (x, y) = rotate_point(x, y, rot);
             let dest_vec = vec2(x, y);
             let end_point = calculate_endpoint(ray_pos, dest_vec, RAYCAST_MAX_TOI);

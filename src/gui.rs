@@ -1,3 +1,5 @@
+#![allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
+
 use bevy::prelude::*;
 use bevy_inspector_egui::{
     bevy_egui::EguiContexts,
@@ -28,12 +30,14 @@ impl Plugin for GuiPlugin {
             .insert_resource(BrainToDisplay::default())
             .insert_resource(Settings::default())
             .insert_resource(SimStats::default())
-            .add_system(stats_dialog_system)
-            .add_system(generation_count_stats_system)
-            .add_system(max_score_stats_system)
-            .add_system(num_cars_stats_system)
-            .add_system(car_progress_system)
-            .add_system(nn_viz_system);
+            .add_systems((
+                stats_dialog_system,
+                generation_count_stats_system,
+                max_score_stats_system,
+                num_cars_stats_system,
+                car_progress_system,
+                nn_viz_system,
+            ));
     }
 }
 
@@ -41,7 +45,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // gui
     let font = asset_server.load(FONT_RES_PATH);
     let text_style = TextStyle {
-        font: font.clone(),
+        font,
         font_size: 40.0,
         color: Color::WHITE,
     };
@@ -247,8 +251,8 @@ fn nn_viz_system(mut contexts: EguiContexts, best_brain: Res<BrainToDisplay>) {
 
     // NN viz points
     let points1 = get_nn_viz_points(NUM_RAY_CASTS as usize, tot_height - 100.0);
-    let points2 = get_nn_viz_points(NUM_HIDDEN_NODES as usize, tot_height);
-    let points3 = get_nn_viz_points(NUM_OUPUT_NODES as usize, tot_height - 300.0);
+    let points2 = get_nn_viz_points(NUM_HIDDEN_NODES, tot_height);
+    let points3 = get_nn_viz_points(NUM_OUPUT_NODES, tot_height - 300.0);
     // NN ouput
     let values1 = best_brain.0[0].clone();
     let values2 = best_brain.0[1].clone();
@@ -266,11 +270,12 @@ fn nn_viz_system(mut contexts: EguiContexts, best_brain: Res<BrainToDisplay>) {
         .iter()
         .rev()
         .map(|v| {
-            if *v != 1.0 {
-                Color32::GREEN
-            } else {
+            if *v == 1.0 {
                 Color32::RED
+            } else {
+                Color32::GREEN
             }
+            // interpolate_colors(Color32::RED, Color32::GREEN, *v)
         })
         .collect();
     let colors2: Vec<Color32> = values2
@@ -290,13 +295,6 @@ fn nn_viz_system(mut contexts: EguiContexts, best_brain: Res<BrainToDisplay>) {
     } else {
         colors3[1] = Color32::GREEN;
     }
-
-    // if values3[0] >= NN_W_ACTIVATION_THRESHOLD {
-    //     colors3[0] = Color32::GREEN;
-    // }
-    // if values3[2] >= NN_S_ACTIVATION_THRESHOLD {
-    //     colors3[2] = Color32::GREEN;
-    // }
 
     // layer 1 -> 2 lines
     for (p1, c1) in points1.iter().zip(colors1.iter()) {
@@ -343,9 +341,9 @@ fn nn_viz_system(mut contexts: EguiContexts, best_brain: Res<BrainToDisplay>) {
     egui::SidePanel::left("left")
         .min_width(400.0)
         .show(ctx, |ui| {
-            shapes.iter().for_each(|s| {
+            for s in shapes.iter() {
                 ui.painter().add(s.clone());
-            });
+            }
         });
 }
 
@@ -385,44 +383,45 @@ fn arrow_keys_viz_system(colors: Vec<Color32>) -> Vec<Shape> {
     // wasd buttons
     let x = 75.0;
     let y = 800.0;
-    let mut shapes = Vec::new();
 
-    // w
-    shapes.push(egui::Shape::rect_filled(
-        egui::Rect {
-            min: egui::pos2(100.0 + x, 100.0 + y),
-            max: egui::pos2(150.0 + x, 150.0 + y),
-        },
-        10.0,
-        Color32::GREEN,
-    ));
-    // a
-    shapes.push(egui::Shape::rect_filled(
-        egui::Rect {
-            min: egui::pos2(40.0 + x, 160.0 + y),
-            max: egui::pos2(90.0 + x, 210.0 + y),
-        },
-        10.0,
-        colors[0],
-    ));
-    // s
-    shapes.push(egui::Shape::rect_filled(
-        egui::Rect {
-            min: egui::pos2(100.0 + x, 160.0 + y),
-            max: egui::pos2(150.0 + x, 210.0 + y),
-        },
-        10.0,
-        Color32::RED,
-    ));
-    // d
-    shapes.push(egui::Shape::rect_filled(
-        egui::Rect {
-            min: egui::pos2(160.0 + x, 160.0 + y),
-            max: egui::pos2(210.0 + x, 210.0 + y),
-        },
-        10.0,
-        colors[1],
-    ));
+    let shapes = vec![
+        // w
+        egui::Shape::rect_filled(
+            egui::Rect {
+                min: egui::pos2(100.0 + x, 100.0 + y),
+                max: egui::pos2(150.0 + x, 150.0 + y),
+            },
+            10.0,
+            Color32::GREEN,
+        ),
+        // a
+        egui::Shape::rect_filled(
+            egui::Rect {
+                min: egui::pos2(40.0 + x, 160.0 + y),
+                max: egui::pos2(90.0 + x, 210.0 + y),
+            },
+            10.0,
+            colors[0],
+        ),
+        // s
+        egui::Shape::rect_filled(
+            egui::Rect {
+                min: egui::pos2(100.0 + x, 160.0 + y),
+                max: egui::pos2(150.0 + x, 210.0 + y),
+            },
+            10.0,
+            Color32::RED,
+        ),
+        // d
+        egui::Shape::rect_filled(
+            egui::Rect {
+                min: egui::pos2(160.0 + x, 160.0 + y),
+                max: egui::pos2(210.0 + x, 210.0 + y),
+            },
+            10.0,
+            colors[1],
+        ),
+    ];
 
     shapes
 }
@@ -454,3 +453,10 @@ fn get_nn_viz_points(n: usize, tot_size: f32) -> Vec<f32> {
 fn are_colors_equad(first: Color32, second: Color32) -> bool {
     (first.g() == 255 && second.g() == 255) || (first.r() == 255 && second.r() == 255)
 }
+
+// fn interpolate_colors(first: Color32, second: Color32, t: f64) -> Color32 {
+//     let r = (first.r() as f64 * (1.0 - t) + second.r() as f64 * t) as u8;
+//     let g = (first.g() as f64 * (1.0 - t) + second.g() as f64 * t) as u8;
+//     let b = (first.b() as f64 * (1.0 - t) + second.b() as f64 * t) as u8;
+//     Color32::from_rgb(r, g, b)
+// }
