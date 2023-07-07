@@ -25,15 +25,16 @@ struct Controls {
 }
 
 // 10 degrees / pi/18 radians
-const TURN_STEP: felt252 = 3219565583416749172;
+const TURN_STEP: felt252 = 3219563738742341801;
+const HALF_PI: felt252 = 28976077338029890953;
 
 trait VehicleTrait {
-    fn control(ref self: Vehicle, controls: Controls);
+    fn control(ref self: Vehicle, controls: Controls) -> bool;
     fn drive(ref self: Vehicle);
 }
 
 impl VehicleImpl of VehicleTrait {
-    fn control(ref self: Vehicle, controls: Controls) {
+    fn control(ref self: Vehicle, controls: Controls) -> bool {
         let delta = match controls.steer {
             Direction::Straight(()) => FixedTrait::from_felt(0),
             Direction::Left(()) => FixedTrait::from_felt(-1 * TURN_STEP),
@@ -42,6 +43,13 @@ impl VehicleImpl of VehicleTrait {
 
         // TODO: Assert bounds
         self.steer = self.steer + delta;
+
+        if (self.steer < FixedTrait::from_felt(-1 * HALF_PI)
+            || self.steer > FixedTrait::from_felt(HALF_PI)) {
+            return bool::False(());
+        }
+
+        bool::True(())
     }
 
     fn drive(ref self: Vehicle) {
@@ -56,6 +64,7 @@ impl VehicleImpl of VehicleTrait {
 
 #[cfg(test)]
 mod tests {
+    use debug::PrintTrait;
     use cubit::types::{Fixed, FixedTrait, FixedPrint, Vec2Trait};
 
     use super::{Vehicle, VehicleTrait, Controls, Direction, TURN_STEP};
@@ -66,10 +75,7 @@ mod tests {
     #[available_gas(2000000)]
     fn test_control() {
         let mut vehicle = Vehicle {
-            position: Vec2Trait::new(
-                FixedTrait::from_felt(TEN),
-                FixedTrait::from_felt(TEN)
-            ),
+            position: Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TEN)),
             steer: FixedTrait::new(0_u128, false),
             speed: FixedTrait::from_felt(TEN)
         };
@@ -88,10 +94,7 @@ mod tests {
     #[available_gas(20000000)]
     fn test_drive() {
         let mut vehicle = Vehicle {
-            position: Vec2Trait::new(
-                FixedTrait::from_felt(TEN),
-                FixedTrait::from_felt(TEN)
-            ),
+            position: Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TEN)),
             steer: FixedTrait::new(0_u128, false),
             speed: FixedTrait::from_felt(TEN)
         };
@@ -99,13 +102,19 @@ mod tests {
         vehicle.drive();
 
         assert(vehicle.position.x == FixedTrait::from_felt(TEN), 'invalid position x');
-        assert(vehicle.position.y == FixedTrait::from_felt(368934881474199059390), 'invalid position y');
+        assert(
+            vehicle.position.y == FixedTrait::from_felt(368934881474199059390), 'invalid position y'
+        );
 
         vehicle.control(Controls { steer: Direction::Left(()) });
         vehicle.drive();
 
         // x: ~8.263527, y: ~29.84807913671
-        assert(vehicle.position.x == FixedTrait::from_felt(152434992225574043750), 'invalid position x');
-        assert(vehicle.position.y == FixedTrait::from_felt(550599844894425284430), 'invalid position y');
+        assert(
+            vehicle.position.x == FixedTrait::from_felt(152435010392070545930), 'invalid position x'
+        );
+        assert(
+            vehicle.position.y == FixedTrait::from_felt(550599848097669227190), 'invalid position y'
+        );
     }
 }
