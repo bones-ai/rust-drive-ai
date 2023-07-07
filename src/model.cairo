@@ -4,15 +4,15 @@ mod model {
 
     use dojo::world::Context;
 
-    use drive_ai::car::Sensors;
-    use drive_ai::car::Controls;
+    use drive_ai::racer::Sensors;
+    use drive_ai::vehicle::Controls;
+    use drive_ai::vehicle::Direction;
 
     fn execute(ctx: Context, sensors: Sensors) -> Controls {
         // TODO: Run model and predict controls
 
         Controls {
-            steer: FixedTrait::new(0_u128, false),
-            acc: FixedTrait::new(0_u128, false),
+            steer: Direction::Straight(()),
         }
     }
 }
