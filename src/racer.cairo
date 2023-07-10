@@ -2,7 +2,7 @@ use cubit::types::Vec2;
 use cubit::types::Fixed;
 use starknet::ContractAddress;
 
-#[derive(Component, Serde, Drop, Copy)]
+#[derive(Component, Serde, SerdeLen, Drop, Copy)]
 struct Racer {
     // Vehicle owner
     driver: ContractAddress,

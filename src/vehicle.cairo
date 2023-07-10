@@ -12,6 +12,13 @@ struct Vehicle {
     speed: Fixed
 }
 
+impl VehicleSerdeLen of dojo::SerdeLen<Vehicle> {
+    #[inline(always)]
+    fn len() -> usize {
+        4
+    }
+}
+
 #[derive(Serde, Drop)]
 enum Direction {
     Straight: (),
