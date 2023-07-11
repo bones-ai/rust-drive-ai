@@ -83,8 +83,8 @@ impl VehicleImpl of VehicleTrait {
         let mut vertices = ArrayTrait::<Vec2>::new();
 
         // To reduce sin and cos calculations
-        let sin_angle = trig::sin(*self.steer);
-        let cos_angle = trig::cos(*self.steer);
+        let sin_angle = trig::sin_fast(*self.steer);
+        let cos_angle = trig::cos_fast(*self.steer);
 
         let rel_vertex_0 = Vec2Trait::new(*self.width, *self.length); // relative to vehicle
         let rot_rel_vertex_0 = rotate(
