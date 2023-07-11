@@ -1,5 +1,5 @@
-use cubit::types::vec2::{Vec2, Vec2Trait};
-use cubit::types::fixed::{Fixed, FixedTrait};
+use cubit::types::Vec2;
+use cubit::types::Fixed;
 
 #[derive(Component, Serde, SerdeLen, Drop)]
 struct Enemy {
@@ -16,13 +16,10 @@ const GRID_HEIGHT: u128 = 1000;
 #[system]
 mod spawn_enemies {
     use traits::Into;
-    use cubit::types::FixedTrait;
-    use cubit::types::Vec2Trait;
     use array::Array;
     use array::ArrayTrait;
 
     use dojo::world::Context;
-    use drive_ai::Vehicle;
 
     use super::{Enemy, ENEMIES_NB};
 
@@ -45,10 +42,8 @@ mod move_enemies {
     use traits::Into;
     use cubit::types::FixedTrait;
     use cubit::types::Vec2Trait;
-    use debug::PrintTrait;
 
     use dojo::world::Context;
-    use drive_ai::Vehicle;
 
     use super::{ENEMIES_NB, Enemy, GRID_HEIGHT};
 
@@ -110,10 +105,9 @@ mod move_enemies {
 
 #[cfg(test)]
 mod tests {
-    use debug::PrintTrait;
-    use cubit::types::{Fixed, FixedTrait, FixedPrint, Vec2Trait};
+    use cubit::types::{FixedTrait, Vec2Trait};
     use super::Enemy;
-    use super::move_enemies::{GRID_HEIGHT, move_enemy};
+    use super::move_enemies::move_enemy;
 
     fn get_test_enemy(x: u128, y: u128) -> Enemy {
         let position = Vec2Trait::new(FixedTrait::new(x, false), FixedTrait::new(y, false));
