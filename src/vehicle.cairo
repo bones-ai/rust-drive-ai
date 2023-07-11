@@ -55,12 +55,8 @@ impl VehicleImpl of VehicleTrait {
         // TODO: Assert bounds
         self.steer = self.steer + delta;
 
-        if (self.steer < FixedTrait::from_felt(-1 * HALF_PI)
-            | self.steer > FixedTrait::from_felt(HALF_PI)) {
-            return bool::False(());
-        }
-
-        bool::True(())
+        (self.steer >= FixedTrait::from_felt(-1 * HALF_PI)
+            && self.steer <= FixedTrait::from_felt(HALF_PI))
     }
 
     fn drive(ref self: Vehicle) {

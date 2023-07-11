@@ -127,22 +127,22 @@ fn do_segments_intersect(p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2) -> bool {
 
     // Either proof 1 or 2 proves intersection
     // Proof 1: two conditions must be met
-    if orientation_a != orientation_b & orientation_c != orientation_d {
+    if orientation_a != orientation_b && orientation_c != orientation_d {
         return true;
     } else {
         // Proof 2: three conditions must be met
         // All points are colinear, i.e. all orientations = 0
-        if orientation_a == 0 & orientation_b == 0 & orientation_c == 0 & orientation_d == 0 {
+        if orientation_a == 0 && orientation_b == 0 && orientation_c == 0 && orientation_d == 0 {
             // x-projections overlap
-            if (p2.x >= p1.x & p2.x <= q1.x)
-                | (p2.x <= p1.x & p2.x >= q1.x)
-                | (q2.x >= p1.x & q2.x <= q1.x)
-                | (q2.x <= p1.x & q2.x >= q1.x) {
+            if (p2.x >= p1.x && p2.x <= q1.x)
+                || (p2.x <= p1.x && p2.x >= q1.x)
+                || (q2.x >= p1.x && q2.x <= q1.x)
+                || (q2.x <= p1.x && q2.x >= q1.x) {
                 // y-projections overlap
-                if (p2.y >= p1.y & p2.y <= q1.y)
-                    | (p2.y <= p1.y & p2.y >= q1.y)
-                    | (q2.y >= p1.y & q2.y <= q1.y)
-                    | (q2.y <= p1.y & q2.y >= q1.y) {
+                if (p2.y >= p1.y && p2.y <= q1.y)
+                    || (p2.y <= p1.y && p2.y >= q1.y)
+                    || (q2.y >= p1.y && q2.y <= q1.y)
+                    || (q2.y <= p1.y && q2.y >= q1.y) {
                     return true;
                 }
             }
@@ -158,14 +158,14 @@ fn orientation(a: Vec2, b: Vec2, c: Vec2) -> felt252 {
     let bc = c - b;
     let cross_product = ab.cross(bc);
     if cross_product.mag > 0 {
-        if cross_product.sign == false {
+        if !cross_product.sign {
             return 1;
         } else {
             return -1;
         }
-    } else {
-        return 0;
     }
+
+    return 0;
 }
 
 // TODO finish
