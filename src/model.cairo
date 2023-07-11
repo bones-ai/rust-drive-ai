@@ -11,8 +11,6 @@ mod model {
     fn execute(ctx: Context, sensors: Sensors) -> Controls {
         // TODO: Run model and predict controls
 
-        Controls {
-            steer: Direction::Straight(()),
-        }
+        Controls { steer: Direction::Straight(()),  }
     }
 }
