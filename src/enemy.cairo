@@ -23,6 +23,16 @@ mod spawn_enemies {
 
     use super::{Enemy, ENEMIES_NB};
 
+    /// Spawn the enemies provided in the array.
+    /// /!\ Panics if the number of enemies provided in the array don't match the expected number
+    /// of enemies defined in the [`suer::ENEMIES_NB`] constant.
+    /// There's no sanity check on any of the properties of the enemies so it's possible to spawn
+    /// enemies with really high speed, on top of each other or too big for the grid.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` - Context of the game.
+    /// * `enemies` - Array of enemies. It is assumed that all the enemies in this array are valid.
     fn execute(ctx: Context, enemies: Array<Enemy>) {
         let enemies_len = enemies.len();
         assert(enemies_len == ENEMIES_NB.into(), 'Wrong enemies len provided');
@@ -36,6 +46,7 @@ mod spawn_enemies {
         }
     }
 }
+
 
 #[system]
 mod move_enemies {
@@ -55,7 +66,8 @@ mod move_enemies {
     ///
     /// * `ctx` - Context of the game.
     fn execute(ctx: Context) {
-        // Iterate through the enemies and move them. If the are out of the grid respawn them at the top of the grid
+        // Iterate through the enemies and move them. If the are out of the grid respawn them at 
+        // the top of the grid
         let mut i: u8 = 0;
         loop {
             if i == ENEMIES_NB {
@@ -77,7 +89,9 @@ mod move_enemies {
     /// <-->
     /// width
     ///
-    /// We respawn the enemy if the front of the car has disappeared from the grid <=> center.y + length / 2 <= 0.
+    /// We respawn the enemy if the front of the car has disappeared from the grid
+    /// <=> 
+    /// center.y + length / 2 <= 0.
     /// As we need to make this smooth for the ui we'll respawn the car at the top of the grid - distance
     /// traveled during the tick.
     /// Ex: If the center of the enemy is at the position init = (16, 25) and its speed is 50 points/tick
@@ -104,7 +118,7 @@ mod move_enemies {
 }
 
 #[cfg(test)]
-mod tests {
+mod tests_move {
     use cubit::types::{FixedTrait, Vec2Trait};
     use super::Enemy;
     use super::move_enemies::move_enemy;
