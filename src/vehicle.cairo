@@ -1,5 +1,6 @@
+use array::ArrayTrait;
 use cubit::types::vec2::{Vec2, Vec2Trait};
-use cubit::types::fixed::{Fixed, FixedTrait, FixedPrint};
+use cubit::types::fixed::{Fixed, FixedTrait, FixedPrint, ONE_u128};
 use cubit::math::trig;
 
 #[derive(Component, Serde, Drop, Copy)]
@@ -41,7 +42,7 @@ const HALF_PI: felt252 = 28976077338029890953;
 trait VehicleTrait {
     fn control(ref self: Vehicle, controls: Controls) -> bool;
     fn drive(ref self: Vehicle);
-    fn get_vertices(ref self: Vehicle) -> Array<Vec2>;
+    fn vertices(self: @Vehicle) -> Span<Vec2>;
 }
 
 impl VehicleImpl of VehicleTrait {
@@ -68,22 +69,22 @@ impl VehicleImpl of VehicleTrait {
         self.position = self.position + v_0;
     }
 
-    fn get_vertices(ref self: Enemy) -> Array<Vec2> {
+    fn vertices(self: @Vehicle) -> Span<Vec2> {
         let mut vertices = ArrayTrait::<Vec2>::new();
         let two = FixedTrait::new(2 * ONE_u128, false);
-        let vertex_1 = Vec2Trait::new(self.width / two, self.length / two).rotate(self.steer)
-            + self.position;
-        let vertex_2 = Vec2Trait::new(-self.width / two, self.length / two).rotate(self.steer)
-            + self.position;
-        let vertex_3 = Vec2Trait::new(-self.width / two, -self.length / two).rotate(self.steer)
-            + self.position;
-        let vertex_4 = Vec2Trait::new(self.width / two, -self.length / two).rotate(self.steer)
-            + self.position;
+        let vertex_1 = Vec2Trait::new(*self.width / two, *self.length / two).rotate(*self.steer)
+            + *self.position;
+        let vertex_2 = Vec2Trait::new(-*self.width / two, *self.length / two).rotate(*self.steer)
+            + *self.position;
+        let vertex_3 = Vec2Trait::new(-*self.width / two, -*self.length / two).rotate(*self.steer)
+            + *self.position;
+        let vertex_4 = Vec2Trait::new(*self.width / two, -*self.length / two).rotate(*self.steer)
+            + *self.position;
         vertices.append(vertex_1);
         vertices.append(vertex_2);
         vertices.append(vertex_3);
         vertices.append(vertex_4);
-        vertices
+        vertices.span()
     }
 }
 
@@ -102,6 +103,8 @@ mod tests {
     fn test_control() {
         let mut vehicle = Vehicle {
             position: Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TEN)),
+            width: FixedTrait::from_felt(TEN),
+            length: FixedTrait::from_felt(TEN),
             steer: FixedTrait::new(0_u128, false),
             speed: FixedTrait::from_felt(TEN)
         };
@@ -121,6 +124,8 @@ mod tests {
     fn test_drive() {
         let mut vehicle = Vehicle {
             position: Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TEN)),
+            width: FixedTrait::from_felt(TEN),
+            length: FixedTrait::from_felt(TEN),
             steer: FixedTrait::new(0_u128, false),
             speed: FixedTrait::from_felt(TEN)
         };

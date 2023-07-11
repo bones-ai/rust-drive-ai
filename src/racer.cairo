@@ -2,8 +2,8 @@ use cubit::types::vec2::{Vec2, Vec2Trait};
 use cubit::types::fixed::{Fixed, FixedTrait, ONE_u128};
 use cubit::math::trig;
 use starknet::ContractAddress;
-use drive_ai::{Vehicle, VehicleTrait, Enemy, EnemyTrait};
-use array::ArrayTrait;
+use drive_ai::{Vehicle, VehicleTrait, Enemy};
+use array::{ArrayTrait, SpanTrait};
 
 #[derive(Component, Serde, SerdeLen, Drop, Copy)]
 struct Racer {
@@ -24,32 +24,30 @@ const RAYS_TOTAL_ANGLE_DEG: u128 = 140;
 const RAY_LENGTH: u128 = 150;
 
 trait SensorsTrait {
-    fn distances_to_enemy(self: Sensors, vehicle: Vehicle, enemy: Enemy);
+    fn distances_to_enemy(ref self: Sensors, vehicle: Vehicle, enemy: Vehicle);
     fn distances_to_wall();
 }
 
 impl SensorsImpl of SensorsTrait {
-    fn distances_to_enemy(self: Sensors, vehicle: Vehicle, enemy: Enemy) {
+    fn distances_to_enemy(ref self: Sensors, vehicle: Vehicle, enemy: Vehicle) {
         // Empties then fills Sensors mutable array self.distances_to_obstacle for particular Enemy
 
-        // First, empty self.distances_to_obstacle
-        loop {
-            if self.distances_to_obstacle.len() == 0 {
-                break ();
-            }
-            self.distances_to_obstacle.pop_front();
-        }
+        let mut distances_to_obstacle = ArrayTrait::new();
 
         let one = FixedTrait::new(ONE_u128, false);
         let ray_length = FixedTrait::new(RAY_LENGTH, false);
-        let enemy_vertices = EnemyTrait::get_vertices(Enemy);
+        let enemy_vertices = enemy.vertices();
 
         // First sensor ray angle, used as "counter" for outer loop to go through sensors
         let mut ray_angle = first_ray_angle(vehicle);
 
         loop {
+            if ray_angle > -first_ray_angle(vehicle) {
+                break ();
+            }
+
             // Endpoints of Ray
-            let p1 = self.position;
+            let p1 = vehicle.position;
             let delta1 = Vec2Trait::new(
                 ray_length * trig::cos(ray_angle), ray_length * trig::sin(ray_angle)
             );
@@ -59,43 +57,37 @@ impl SensorsImpl of SensorsTrait {
             let mut edge: usize = 0;
 
             loop {
-                // Endpoints of edge
-                let p2 = match edge {
-                    0 => enemy_vertices[0],
-                    1 => enemy_vertices[1],
-                    2 => enemy_vertices[2],
-                    3 => enemy_vertices[3]
-                };
-                let q2 = match edge {
-                    0 => enemy_vertices[1],
-                    1 => enemy_vertices[2],
-                    2 => enemy_vertices[3],
-                    3 => enemy_vertices[0]
-                };
-
-                if do_segments_intersect(p1, q1, p2, q2) {
-                    self.distances_to_obstacle.append(distance_to_intersection(p1, q1, p2, q2));
-                } else {
-                    self.distances_to_obstacle.append(FixedTrait::new(0, false));
-                }
-
-                edge += 1;
-
                 if edge >= 3 {
                     break ();
                 }
-            }
 
-            ray_angle += angle_between_rays;
+                // Endpoints of edge
+                let p2 = enemy_vertices.at(edge);
 
-            if ray_angle > -first_ray_angle(vehicle) {
-                break ();
-            }
-        }
+                let mut q2_idx = edge + 1;
+                if q2_idx == 4 {
+                    q2_idx = 0;
+                }
+                let q2 = enemy_vertices.at(q2_idx);
+
+                if do_segments_intersect(p1, q1, *p2, *q2) {
+                    distances_to_obstacle.append(distance_to_intersection(p1, q1, *p2, *q2));
+                } else {
+                    distances_to_obstacle.append(FixedTrait::new(0, false));
+                }
+
+                edge += 1;
+            };
+
+            // TODO: Update
+            ray_angle += FixedTrait::new_unscaled(2_u128, false); // angle_between_rays;
+        };
+
+        self.distances_to_obstacle = distances_to_obstacle;
     }
 
     // TODO
-    fn distance_to_wall() {}
+    fn distances_to_wall() {}
 }
 
 // TODO
@@ -114,7 +106,7 @@ fn first_ray_angle(vehicle: Vehicle) -> Fixed {
     let two = FixedTrait::new_unscaled(2_u128, false);
     let rays_total_angle = deg_to_rad(FixedTrait::new(RAYS_TOTAL_ANGLE_DEG, false));
     let rays_half_angle = rays_total_angle / two;
-    return self.steer - rays_half_angle;
+    return vehicle.steer - rays_half_angle;
 }
 
 // Cool algorithm - see pp. 4-10 at https://www.dcs.gla.ac.uk/~pat/52233/slides/Geometry1x1.pdf
@@ -177,17 +169,19 @@ fn distance_to_intersection(p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2) -> Fixed {
     let p_diff = Vec2Trait::new(p1.x - p2.x, p1.y - p2.y);
 
     let cross_product = p_diff.cross(q2);
-    if cross_product == 0 { // p_diff and q2 are colinear
-    //TODO find y-coordinate of intersection only
+    let determinant = (q1.x * q2.y) - (q1.y * q2.x);
+
+    if cross_product == FixedTrait::new(0, false) { // p_diff and q2 are colinear
+        // TODO find y-coordinate of intersection only
+        return FixedTrait::new(0, false);
     } else {
         let t = (q2.x * (p1.y - p2.y) - q2.y * (p1.x - p2.x)) / determinant;
 
         let intersection = Vec2Trait::new(p1.x + t * (q1.x - p1.x), p1.y + t * (q1.y - p1.y));
 
         let partial_ray = intersection - p1;
+        return (partial_ray.x.pow(two) + partial_ray.y.pow(two)).sqrt();
     }
-
-    return sqrt(partial_ray.x.pow(two) + partial_ray.y.pow(two));
 }
 
 #[system]

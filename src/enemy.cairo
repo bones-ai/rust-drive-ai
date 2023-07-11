@@ -2,7 +2,9 @@ use cubit::types::vec2::{Vec2, Vec2Trait};
 use cubit::types::fixed::{Fixed, FixedTrait};
 
 #[derive(Component, Serde, SerdeLen, Drop)]
-struct Enemy {}
+struct Enemy {
+    typ: u8, 
+}
 
 // Road dimensions
 // 400x1000
@@ -30,6 +32,7 @@ mod spawn_enemies {
                 length: FixedTrait::new_unscaled(16_u128, false),
                 width: FixedTrait::new_unscaled(32_u128, false),
                 speed: FixedTrait::new_unscaled(50_u128, false),
+                steer: FixedTrait::new_unscaled(0_u128, false),
             })
         );
 

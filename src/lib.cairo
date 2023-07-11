@@ -1,6 +1,8 @@
 mod enemy;
+use enemy::Enemy;
+
 mod model;
 mod racer;
 
 mod vehicle;
-use vehicle::Vehicle;
+use vehicle::{Vehicle, VehicleTrait};
