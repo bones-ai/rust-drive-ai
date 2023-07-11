@@ -1,17 +1,9 @@
-use cubit::types::Vec2;
-use cubit::types::Fixed;
+use cubit::types::vec2::{Vec2, Vec2Trait};
+use cubit::types::fixed::{Fixed, FixedTrait};
 
-#[derive(Component, Serde, Drop)]
+#[derive(Component, Serde, SerdeLen, Drop)]
 struct Enemy {
-    position: Vec2,
-    velcity: Fixed,
-}
-
-impl EnemySerdeLen of dojo::SerdeLen<Enemy> {
-    #[inline(always)]
-    fn len() -> usize {
-        3
-    }
+    typ: u8, 
 }
 
 // Road dimensions
@@ -37,8 +29,10 @@ mod spawn_enemies {
             ctx.world.uuid().into(),
             (Vehicle {
                 position,
-                steer: FixedTrait::new(0_u128, false),
-                speed: FixedTrait::new(50_u128, false),
+                length: FixedTrait::new_unscaled(16_u128, false),
+                width: FixedTrait::new_unscaled(32_u128, false),
+                speed: FixedTrait::new_unscaled(50_u128, false),
+                steer: FixedTrait::new_unscaled(0_u128, false),
             })
         );
 
