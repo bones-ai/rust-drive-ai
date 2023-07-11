@@ -2,6 +2,7 @@ use array::ArrayTrait;
 use cubit::types::vec2::{Vec2, Vec2Trait};
 use cubit::types::fixed::{Fixed, FixedTrait, FixedPrint, ONE_u128};
 use cubit::math::trig;
+use cubit::math::core::neg;
 
 #[derive(Component, Serde, Drop, Copy)]
 struct Vehicle {
@@ -75,14 +76,18 @@ impl VehicleImpl of VehicleTrait {
     fn vertices(self: @Vehicle) -> Span<Vec2> {
         let mut vertices = ArrayTrait::<Vec2>::new();
 
-        let vertex_1 = Vec2Trait::new(*self.width, *self.length).rotate(*self.steer)
-            + *self.position;
-        let vertex_2 = Vec2Trait::new(-*self.width, *self.length).rotate(*self.steer)
-            + *self.position;
-        let vertex_3 = Vec2Trait::new(-*self.width, -*self.length).rotate(*self.steer)
-            + *self.position;
-        let vertex_4 = Vec2Trait::new(*self.width, -*self.length).rotate(*self.steer)
-            + *self.position;
+        let cos_theta = (*self.steer).cos_fast();
+        let sin_theta = (*self.steer).sin_fast();
+
+        let cos_x = *self.width * cos_theta;
+        let cos_y = *self.length * cos_theta;
+        let sin_x = *self.width * sin_theta;
+        let sin_y = *self.length * sin_theta;
+
+        let vertex_1 = Vec2 { x: cos_x - sin_y, y: sin_x + cos_y } + *self.position;
+        let vertex_2 = Vec2 { x: neg(cos_x) - sin_y, y: neg(sin_x) + cos_y } + *self.position;
+        let vertex_3 = Vec2 { x: neg(cos_x) + sin_y, y: neg(sin_x) - cos_y } + *self.position;
+        let vertex_4 = Vec2 { x: cos_x + sin_y, y: sin_x - cos_y } + *self.position;
 
         vertices.append(vertex_1);
         vertices.append(vertex_2);
