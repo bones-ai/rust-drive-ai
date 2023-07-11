@@ -5,6 +5,9 @@ use starknet::ContractAddress;
 use drive_ai::{Vehicle, VehicleTrait};
 use array::{ArrayTrait, SpanTrait};
 
+use orion::operators::tensor::core::Tensor;
+use orion::numbers::fixed_point::core::FixedType;
+
 #[derive(Component, Serde, SerdeLen, Drop, Copy)]
 struct Racer {
     // Vehicle owner
@@ -15,7 +18,7 @@ struct Racer {
 
 #[derive(Serde, Drop)]
 struct Sensors {
-    distances_to_obstacle: Array<Fixed>, 
+    distances_to_obstacle: Tensor<FixedType>, 
 }
 
 const NUM_RAYS: u128 = 9; // must be ODD integer
