@@ -15,103 +15,96 @@ struct Racer {
 
 #[derive(Serde, Drop)]
 struct Sensors {
-    rays: Array<Fixed>, // not sure if we need this also?
-    distances_to_obstacle: Array<Fixed>,
+    distances_to_obstacle: Array<Fixed>, 
 }
 
 const NUM_RAYS: u128 = 9; // must be ODD integer
 const RAYS_TOTAL_ANGLE_DEG: u128 = 140;
 const RAY_LENGTH: u128 = 150;
 
-trait SensorsTrait {
-    fn distances_to_enemy(ref self: Sensors, vehicle: Vehicle, enemy: Vehicle);
-    fn distances_to_wall();
-}
+const DEG_90_IN_RADS: felt252 = 28976077338029890953;
+const DEG_70_IN_RADS: felt252 = 22536387234850959209;
+const DEG_50_IN_RADS: felt252 = 16098473553126325695;
+const DEG_30_IN_RADS: felt252 = 9658715196994321226;
+const DEG_10_IN_RADS: felt252 = 3218956840862316756;
 
-impl SensorsImpl of SensorsTrait {
-    fn distances_to_enemy(ref self: Sensors, vehicle: Vehicle, enemy: Vehicle) {
-        // Empties then fills Sensors mutable array self.distances_to_obstacle for particular Enemy
+fn distances_to_enemy(vehicle: Vehicle, enemy: Vehicle) -> Array<Fixed> {
+    // Empties then fills Sensors mutable array self.distances_to_obstacle for particular Enemy
+    let mut distances_to_obstacle = ArrayTrait::new();
 
-        let mut distances_to_obstacle = ArrayTrait::new();
+    let ray_length = FixedTrait::new(RAY_LENGTH, false);
+    let enemy_vertices = enemy.vertices();
 
-        let one = FixedTrait::new(ONE_u128, false);
-        let ray_length = FixedTrait::new(RAY_LENGTH, false);
-        let enemy_vertices = enemy.vertices();
+    let mut rays = ArrayTrait::new();
+    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_70_IN_RADS));
+    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_50_IN_RADS));
+    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_30_IN_RADS));
+    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_10_IN_RADS));
+    rays.append(vehicle.steer);
+    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_10_IN_RADS));
+    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_30_IN_RADS));
+    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_50_IN_RADS));
+    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_70_IN_RADS));
 
-        // First sensor ray angle, used as "counter" for outer loop to go through sensors
-        let mut ray_angle = first_ray_angle(vehicle);
+    loop {
+        match rays.pop_front() {
+            Option::Some(ray) => {
+                // Endpoints of Ray
+                let p1 = vehicle.position;
+                let delta1 = Vec2Trait::new(
+                    ray_length * trig::cos(ray), ray_length * trig::sin(ray)
+                );
+                let q1 = p1 + delta1;
 
-        loop {
-            if ray_angle > -first_ray_angle(vehicle) {
+                // Counter for inner loop: check each edge of Enemy for intersection this sensor's ray
+                let mut edge: usize = 0;
+
+                loop {
+                    if edge >= 3 {
+                        break ();
+                    }
+
+                    // Endpoints of edge
+                    let p2 = enemy_vertices.at(edge);
+
+                    let mut q2_idx = edge + 1;
+                    if q2_idx == 4 {
+                        q2_idx = 0;
+                    }
+
+                    let q2 = enemy_vertices.at(q2_idx);
+
+                    if does_intersect(p1, q1, *p2, *q2) {
+                        distances_to_obstacle.append(distance_to_intersection(p1, q1, *p2, *q2));
+                    } else {
+                        distances_to_obstacle.append(FixedTrait::new(0, false));
+                    }
+
+                    edge += 1;
+                };
+            },
+            Option::None(_) => {
                 break ();
             }
-
-            // Endpoints of Ray
-            let p1 = vehicle.position;
-            let delta1 = Vec2Trait::new(
-                ray_length * trig::cos(ray_angle), ray_length * trig::sin(ray_angle)
-            );
-            let q1 = p1 + delta1;
-
-            // Counter for inner loop: check each edge of Enemy for intersection this sensor's ray
-            let mut edge: usize = 0;
-
-            loop {
-                if edge >= 3 {
-                    break ();
-                }
-
-                // Endpoints of edge
-                let p2 = enemy_vertices.at(edge);
-
-                let mut q2_idx = edge + 1;
-                if q2_idx == 4 {
-                    q2_idx = 0;
-                }
-                let q2 = enemy_vertices.at(q2_idx);
-
-                if do_segments_intersect(p1, q1, *p2, *q2) {
-                    distances_to_obstacle.append(distance_to_intersection(p1, q1, *p2, *q2));
-                } else {
-                    distances_to_obstacle.append(FixedTrait::new(0, false));
-                }
-
-                edge += 1;
-            };
-
-            // TODO: Update
-            ray_angle += FixedTrait::new_unscaled(2_u128, false); // angle_between_rays;
         };
+    };
 
-        self.distances_to_obstacle = distances_to_obstacle;
-    }
-
-    // TODO
-    fn distances_to_wall() {}
+    distances_to_obstacle
 }
+
+// TODO
+fn distances_to_wall() {}
 
 // TODO
 fn collision_enemy_check() {}
+
 // TODO
 fn collision_wall_check() {}
 
-// maybe put this in cubit::math::trig?
-fn deg_to_rad(theta_deg: Fixed) -> Fixed {
-    let pi = FixedTrait::new(trig::PI_u128, false);
-    let one_eighty = FixedTrait::new(180 * ONE_u128, false);
-    theta_deg * pi / one_eighty
-}
-
-fn first_ray_angle(vehicle: Vehicle) -> Fixed {
-    let two = FixedTrait::new_unscaled(2_u128, false);
-    let rays_total_angle = deg_to_rad(FixedTrait::new(RAYS_TOTAL_ANGLE_DEG, false));
-    let rays_half_angle = rays_total_angle / two;
-    return vehicle.steer - rays_half_angle;
-}
-
 // Cool algorithm - see pp. 4-10 at https://www.dcs.gla.ac.uk/~pat/52233/slides/Geometry1x1.pdf
 // Determines if segments p1q1 and p2q2 intersect 
-fn do_segments_intersect(p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2) -> bool {
+// Benchmark ~10k steps
+fn does_intersect(p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2) -> bool {
     let orientation_a = orientation(p1, q1, p2);
     let orientation_b = orientation(p1, q1, q2);
     let orientation_c = orientation(p2, q2, p1);
@@ -121,43 +114,41 @@ fn do_segments_intersect(p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2) -> bool {
     // Proof 1: two conditions must be met
     if orientation_a != orientation_b && orientation_c != orientation_d {
         return true;
-    } else {
-        // Proof 2: three conditions must be met
-        // All points are colinear, i.e. all orientations = 0
-        if orientation_a == 0 && orientation_b == 0 && orientation_c == 0 && orientation_d == 0 {
-            // x-projections overlap
-            if (p2.x >= p1.x && p2.x <= q1.x)
-                || (p2.x <= p1.x && p2.x >= q1.x)
-                || (q2.x >= p1.x && q2.x <= q1.x)
-                || (q2.x <= p1.x && q2.x >= q1.x) {
-                // y-projections overlap
-                if (p2.y >= p1.y && p2.y <= q1.y)
-                    || (p2.y <= p1.y && p2.y >= q1.y)
-                    || (q2.y >= p1.y && q2.y <= q1.y)
-                    || (q2.y <= p1.y && q2.y >= q1.y) {
-                    return true;
-                }
-            }
-        }
     }
-    return false;
+
+    // Proof 2: three conditions must be met
+    // All points are colinear, i.e. all orientations = 0
+    (orientation_a == 1
+        && orientation_b == 1
+        && orientation_c == 1
+        && orientation_d == 1
+        && // x-projections overlap
+        ((p2.x >= p1.x && p2.x <= q1.x)
+            || (p2.x <= p1.x && p2.x >= q1.x)
+            || (q2.x >= p1.x && q2.x <= q1.x)
+            || (q2.x <= p1.x && q2.x >= q1.x))
+        && // y-projections overlap
+        ((p2.y >= p1.y && p2.y <= q1.y)
+            || (p2.y <= p1.y && p2.y >= q1.y)
+            || (q2.y >= p1.y && q2.y <= q1.y)
+            || (q2.y <= p1.y && q2.y >= q1.y)))
 }
 
 // Orientation = sign of cross product of vectors (b - a) and (c - b)
 // (simpler than what they do in link above)
-fn orientation(a: Vec2, b: Vec2, c: Vec2) -> felt252 {
+fn orientation(a: Vec2, b: Vec2, c: Vec2) -> u8 {
     let ab = b - a;
     let bc = c - b;
     let cross_product = ab.cross(bc);
     if cross_product.mag > 0 {
         if !cross_product.sign {
-            return 1;
-        } else {
-            return -1;
+            return 2;
         }
+
+        return 0;
     }
 
-    return 0;
+    return 1;
 }
 
 // TODO finish
@@ -201,7 +192,8 @@ mod spawn_racer {
         );
         set !(
             ctx.world,
-            ctx.world.uuid().into(),
+            // TODO: Update to use uuid and emit event to get the racer id
+            1.into(),
             (
                 Racer {
                     driver: ctx.origin, model
@@ -223,12 +215,13 @@ mod spawn_racer {
 mod drive {
     use traits::Into;
     use dojo::world::Context;
-
-    use super::Racer;
     use drive_ai::Vehicle;
+
+    use super::{Racer, distances_to_enemy};
 
     fn execute(ctx: Context, car: usize) {
         let (racer, vehicle) = get !(ctx.world, car.into(), (Racer, Vehicle));
+        let sensors = distances_to_enemy(vehicle, vehicle);
     // 1. Compute sensors
     // 2. Run model forward pass
     // let controls = execute!(ctx.world, car.model, Sensors.serialize());
