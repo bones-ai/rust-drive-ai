@@ -5,6 +5,9 @@ use starknet::ContractAddress;
 use drive_ai::{Vehicle, VehicleTrait};
 use array::{ArrayTrait, SpanTrait};
 
+use orion::operators::tensor::core::Tensor;
+use orion::numbers::fixed_point::core::FixedType;
+
 #[derive(Component, Serde, SerdeLen, Drop, Copy)]
 struct Racer {
     // Vehicle owner
