@@ -22,58 +22,71 @@ const NUM_RAYS: u128 = 9; // must be ODD integer
 const RAYS_TOTAL_ANGLE_DEG: u128 = 140;
 const RAY_LENGTH: u128 = 150;
 
+const DEG_90_IN_RADS: felt252 = 28976077338029890953;
+const DEG_70_IN_RADS: felt252 = 22536387234850959209;
+const DEG_50_IN_RADS: felt252 = 16098473553126325695;
+const DEG_30_IN_RADS: felt252 = 9658715196994321226;
+const DEG_10_IN_RADS: felt252 = 3218956840862316756;
+
 fn distances_to_enemy(vehicle: Vehicle, enemy: Vehicle) -> Array<Fixed> {
     // Empties then fills Sensors mutable array self.distances_to_obstacle for particular Enemy
     let mut distances_to_obstacle = ArrayTrait::new();
 
-    let one = FixedTrait::new(ONE_u128, false);
     let ray_length = FixedTrait::new(RAY_LENGTH, false);
     let enemy_vertices = enemy.vertices();
 
-    // First sensor ray angle, used as "counter" for outer loop to go through sensors
-    let mut ray_angle = first_ray_angle(vehicle);
+    let mut rays = ArrayTrait::new();
+    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_70_IN_RADS));
+    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_50_IN_RADS));
+    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_30_IN_RADS));
+    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_10_IN_RADS));
+    rays.append(vehicle.steer);
+    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_10_IN_RADS));
+    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_30_IN_RADS));
+    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_50_IN_RADS));
+    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_70_IN_RADS));
 
     loop {
-        if ray_angle > -first_ray_angle(vehicle) {
-            break ();
-        }
+        match rays.pop_front() {
+            Option::Some(ray) => {
+                // Endpoints of Ray
+                let p1 = vehicle.position;
+                let delta1 = Vec2Trait::new(
+                    ray_length * trig::cos(ray), ray_length * trig::sin(ray)
+                );
+                let q1 = p1 + delta1;
 
-        // Endpoints of Ray
-        let p1 = vehicle.position;
-        let delta1 = Vec2Trait::new(
-            ray_length * trig::cos(ray_angle), ray_length * trig::sin(ray_angle)
-        );
-        let q1 = p1 + delta1;
+                // Counter for inner loop: check each edge of Enemy for intersection this sensor's ray
+                let mut edge: usize = 0;
 
-        // Counter for inner loop: check each edge of Enemy for intersection this sensor's ray
-        let mut edge: usize = 0;
+                loop {
+                    if edge >= 3 {
+                        break ();
+                    }
 
-        loop {
-            if edge >= 3 {
+                    // Endpoints of edge
+                    let p2 = enemy_vertices.at(edge);
+
+                    let mut q2_idx = edge + 1;
+                    if q2_idx == 4 {
+                        q2_idx = 0;
+                    }
+
+                    let q2 = enemy_vertices.at(q2_idx);
+
+                    if does_intersect(p1, q1, *p2, *q2) {
+                        distances_to_obstacle.append(distance_to_intersection(p1, q1, *p2, *q2));
+                    } else {
+                        distances_to_obstacle.append(FixedTrait::new(0, false));
+                    }
+
+                    edge += 1;
+                };
+            },
+            Option::None(_) => {
                 break ();
             }
-
-            // Endpoints of edge
-            let p2 = enemy_vertices.at(edge);
-
-            let mut q2_idx = edge + 1;
-            if q2_idx == 4 {
-                q2_idx = 0;
-            }
-
-            let q2 = enemy_vertices.at(q2_idx);
-
-            if does_intersect(p1, q1, *p2, *q2) {
-                distances_to_obstacle.append(distance_to_intersection(p1, q1, *p2, *q2));
-            } else {
-                distances_to_obstacle.append(FixedTrait::new(0, false));
-            }
-
-            edge += 1;
         };
-
-        // TODO: Update correctly
-        ray_angle += FixedTrait::new_unscaled(2_u128, false); // angle_between_rays;
     };
 
     distances_to_obstacle
@@ -88,23 +101,9 @@ fn collision_enemy_check() {}
 // TODO
 fn collision_wall_check() {}
 
-// maybe put this in cubit::math::trig?
-fn deg_to_rad(theta_deg: Fixed) -> Fixed {
-    let pi = FixedTrait::new(trig::PI_u128, false);
-    let one_eighty = FixedTrait::new(180 * ONE_u128, false);
-    theta_deg * pi / one_eighty
-}
-
-fn first_ray_angle(vehicle: Vehicle) -> Fixed {
-    let two = FixedTrait::new_unscaled(2_u128, false);
-    // TODO: Store in rads to avoid runtime compute
-    let rays_total_angle = deg_to_rad(FixedTrait::new(RAYS_TOTAL_ANGLE_DEG, false));
-    let rays_half_angle = rays_total_angle / two;
-    return vehicle.steer - rays_half_angle;
-}
-
 // Cool algorithm - see pp. 4-10 at https://www.dcs.gla.ac.uk/~pat/52233/slides/Geometry1x1.pdf
 // Determines if segments p1q1 and p2q2 intersect 
+// Benchmark ~10k steps
 fn does_intersect(p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2) -> bool {
     let orientation_a = orientation(p1, q1, p2);
     let orientation_b = orientation(p1, q1, q2);

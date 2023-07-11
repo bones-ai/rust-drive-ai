@@ -7,7 +7,7 @@ use cubit::math::trig;
 struct Vehicle {
     // Current vehicle position
     position: Vec2,
-    // Vehicle dimensions
+    // Vehicle dimensions, stored in half-lengths
     length: Fixed,
     width: Fixed,
     // Vehicle steer in radians -1/2π <= s <= 1/2π
@@ -69,19 +69,21 @@ impl VehicleImpl of VehicleTrait {
         self.position = self.position + v_0;
     }
 
+    // Optimizations:
+    // TODO: Write test
+    // Benchmark: ~63k steps
     fn vertices(self: @Vehicle) -> Span<Vec2> {
         let mut vertices = ArrayTrait::<Vec2>::new();
 
-        // TODO: Store half width / length to save compute?
-        let two = FixedTrait::new(2 * ONE_u128, false);
-        let vertex_1 = Vec2Trait::new(*self.width / two, *self.length / two).rotate(*self.steer)
+        let vertex_1 = Vec2Trait::new(*self.width, *self.length).rotate(*self.steer)
             + *self.position;
-        let vertex_2 = Vec2Trait::new(-*self.width / two, *self.length / two).rotate(*self.steer)
+        let vertex_2 = Vec2Trait::new(-*self.width, *self.length).rotate(*self.steer)
             + *self.position;
-        let vertex_3 = Vec2Trait::new(-*self.width / two, -*self.length / two).rotate(*self.steer)
+        let vertex_3 = Vec2Trait::new(-*self.width, -*self.length).rotate(*self.steer)
             + *self.position;
-        let vertex_4 = Vec2Trait::new(*self.width / two, -*self.length / two).rotate(*self.steer)
+        let vertex_4 = Vec2Trait::new(*self.width, -*self.length).rotate(*self.steer)
             + *self.position;
+
         vertices.append(vertex_1);
         vertices.append(vertex_2);
         vertices.append(vertex_3);
