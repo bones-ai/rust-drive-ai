@@ -19,7 +19,7 @@ struct Vehicle {
 impl VehicleSerdeLen of dojo::SerdeLen<Vehicle> {
     #[inline(always)]
     fn len() -> usize {
-        4
+        12
     }
 }
 
@@ -71,6 +71,8 @@ impl VehicleImpl of VehicleTrait {
 
     fn vertices(self: @Vehicle) -> Span<Vec2> {
         let mut vertices = ArrayTrait::<Vec2>::new();
+
+        // TODO: Store half width / length to save compute?
         let two = FixedTrait::new(2 * ONE_u128, false);
         let vertex_1 = Vec2Trait::new(*self.width / two, *self.length / two).rotate(*self.steer)
             + *self.position;
