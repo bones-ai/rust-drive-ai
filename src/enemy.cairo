@@ -54,7 +54,13 @@ mod move_enemies {
     const PLAYERS: u8 = 10;
     const GRID_Y_SIZE: u128 = 1000;
 
-    fn execute(ctx: Context, model: felt252) {
+    /// Executes a tick for the enemies.
+    /// During a tick the enemies will need to be moved/respawned if they go out of the grid.
+    ///
+    /// # Argument
+    ///
+    /// * `ctx` - Context of the game.
+    fn execute(ctx: Context) {
         // Iterate through the enemies and move them. If the are out of the grid respawn them at the top of the grid
         let mut i: u8 = 0;
         loop {
