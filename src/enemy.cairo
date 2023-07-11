@@ -5,6 +5,10 @@ use cubit::types::fixed::{Fixed, FixedTrait};
 struct Enemy {
     typ: u8, 
 }
+/// Number of enemies to spawn.
+const ENEMIES_NB: u8 = 10;
+/// Height of the grid.
+const GRID_HEIGHT: u128 = 1000;
 
 // Road dimensions
 // 400x1000
@@ -14,29 +18,25 @@ mod spawn_enemies {
     use traits::Into;
     use cubit::types::FixedTrait;
     use cubit::types::Vec2Trait;
+    use array::Array;
+    use array::ArrayTrait;
 
     use dojo::world::Context;
     use drive_ai::Vehicle;
 
-    use super::Enemy;
+    use super::{Enemy, ENEMIES_NB};
 
-    fn execute(ctx: Context, model: felt252) {
-        let position = Vec2Trait::new(
-            FixedTrait::new_unscaled(50, false), FixedTrait::new_unscaled(0, false)
-        );
-        set !(
-            ctx.world,
-            ctx.world.uuid().into(),
-            (Vehicle {
-                position,
-                length: FixedTrait::new_unscaled(16_u128, false),
-                width: FixedTrait::new_unscaled(32_u128, false),
-                speed: FixedTrait::new_unscaled(50_u128, false),
-                steer: FixedTrait::new_unscaled(0_u128, false),
-            })
-        );
-
-        return ();
+    fn execute(ctx: Context, enemies: Array<Enemy>) {
+        let enemies_len = enemies.len();
+        assert(enemies_len == ENEMIES_NB.into(), 'Wrong enemies len provided');
+        let mut i: usize = 0;
+        loop {
+            if i == ENEMIES_NB.into() {
+                break ();
+            }
+            set !(ctx.world, i.into(), (enemies[i]));
+            i += 1;
+        }
     }
 }
 
@@ -50,10 +50,8 @@ mod move_enemies {
     use dojo::world::Context;
     use drive_ai::Vehicle;
 
-    use super::Enemy;
+    use super::{ENEMIES_NB, Enemy, GRID_HEIGHT};
 
-    const PLAYERS: u8 = 10;
-    const GRID_Y_SIZE: u128 = 1000;
 
     /// Executes a tick for the enemies.
     /// During a tick the enemies will need to be moved/respawned if they go out of the grid.
@@ -65,7 +63,7 @@ mod move_enemies {
         // Iterate through the enemies and move them. If the are out of the grid respawn them at the top of the grid
         let mut i: u8 = 0;
         loop {
-            if i == PLAYERS {
+            if i == ENEMIES_NB {
                 break ();
             }
             let enemy = get !(ctx.world, i.into(), Enemy);
@@ -97,7 +95,7 @@ mod move_enemies {
     #[inline(always)]
     fn move_enemy(enemy: Enemy) -> Enemy {
         let half_length = FixedTrait::new(enemy.length.mag / 2, false);
-        let grid_height = FixedTrait::new(GRID_Y_SIZE, false);
+        let grid_height = FixedTrait::new(GRID_HEIGHT, false);
         let new_y = if enemy.position.y <= enemy.speed + half_length {
             grid_height - (enemy.speed - enemy.position.y) + half_length
         } else {
@@ -115,7 +113,7 @@ mod tests {
     use debug::PrintTrait;
     use cubit::types::{Fixed, FixedTrait, FixedPrint, Vec2Trait};
     use super::Enemy;
-    use super::move_enemies::{GRID_Y_SIZE, move_enemy};
+    use super::move_enemies::{GRID_HEIGHT, move_enemy};
 
     fn get_test_enemy(x: u128, y: u128) -> Enemy {
         let position = Vec2Trait::new(FixedTrait::new(x, false), FixedTrait::new(y, false));
