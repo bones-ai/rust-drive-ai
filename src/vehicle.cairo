@@ -40,6 +40,12 @@ struct Controls {
 const TURN_STEP: felt252 = 3219563738742341801;
 const HALF_PI: felt252 = 28976077338029890953;
 
+fn rotate(a: Vec2, sin_angle: Fixed, cos_angle: Fixed) -> Vec2 {
+    let new_x = a.x * cos_angle - a.y * sin_angle;
+    let new_y = a.x * sin_angle + a.y * cos_angle;
+    return Vec2Trait::new(new_x, new_y);
+}
+
 trait VehicleTrait {
     fn control(ref self: Vehicle, controls: Controls) -> bool;
     fn drive(ref self: Vehicle);
@@ -76,18 +82,47 @@ impl VehicleImpl of VehicleTrait {
     fn vertices(self: @Vehicle) -> Span<Vec2> {
         let mut vertices = ArrayTrait::<Vec2>::new();
 
-        let cos_theta = (*self.steer).cos_fast();
-        let sin_theta = (*self.steer).sin_fast();
+        // To reduce sin and cos calculations
+        let sin_angle = trig::sin(*self.steer);
+        let cos_angle = trig::cos(*self.steer);
 
-        let cos_x = *self.width * cos_theta;
-        let cos_y = *self.length * cos_theta;
-        let sin_x = *self.width * sin_theta;
-        let sin_y = *self.length * sin_theta;
+        let rel_vertex_0 = Vec2Trait::new(*self.width, *self.length); // relative to vehicle
+        let rot_rel_vertex_0 = rotate(
+            *rel_vertex_0, *sin_angle, *cos_angle
+        ); // rotated relative to vehicle
+        let vertex_0 = rot_rel_vertex_0 + *self.position; // relative to origin
 
-        let vertex_1 = Vec2 { x: cos_x - sin_y, y: sin_x + cos_y } + *self.position;
-        let vertex_2 = Vec2 { x: neg(cos_x) - sin_y, y: neg(sin_x) + cos_y } + *self.position;
-        let vertex_3 = Vec2 { x: neg(cos_x) + sin_y, y: neg(sin_x) - cos_y } + *self.position;
-        let vertex_4 = Vec2 { x: cos_x + sin_y, y: sin_x - cos_y } + *self.position;
+        let rel_vertex_1 = Vec2Trait::new(-*self.width, *self.length);
+        let rot_rel_vertex_1 = rotate(*rel_vertex_1, *sin_angle, *cos_angle);
+        let vertex_1 = rot_rel_vertex_1 + *self.position;
+
+        // Get last two vertices by symmetry
+        let rel_vertex_2 = Vec2Trait::new(-*self.width, -*self.length);
+        let delta_vertex_2 = rel_vertex_0 - rot_rel_vertex_0; // negative of delta for vertex_0
+        let vertex_2 = rel_vertex_2 + delta_vertex_2 + *self.position;
+
+        let rel_vertex_3 = Vec2Trait::new(*self.width, -*self.length);
+        let delta_vertex_3 = rel_vertex_1 - rot_rel_vertex_1; // negative of delta for vertex_1
+        let vertex_3 = rel_vertex_3 + delta_vertex_3 + *self.position;
+
+        // To reduce sin and cos calculations
+        // let vertex_0 = rotate(Vec2Trait::new(*self.width, *self.length), sin_angle, cos_angle)
+        //     + *self.position;
+        // let vertex_1 = rotate(Vec2Trait::new(-*self.width, *self.length), sin_angle, cos_angle)
+        //     + *self.position;
+        // let vertex_2 = rotate(Vec2Trait::new(-*self.width, -*self.length), sin_angle, cos_angle)
+        //     + *self.position;
+        // let vertex_3 = rotate(Vec2Trait::new(*self.width, -*self.length), sin_angle, cos_angle)
+        //     + *self.position;
+
+        // let vertex_0 = Vec2Trait::new(*self.width, *self.length).rotate(*self.steer)
+        //     + *self.position;
+        // let vertex_1 = Vec2Trait::new(-*self.width, *self.length).rotate(*self.steer)
+        //     + *self.position;
+        // let vertex_2 = Vec2Trait::new(-*self.width, -*self.length).rotate(*self.steer)
+        //     + *self.position;
+        // let vertex_3 = Vec2Trait::new(*self.width, -*self.length).rotate(*self.steer)
+        //     + *self.position;
 
         vertices.append(vertex_0);
         vertices.append(vertex_1);
@@ -102,10 +137,14 @@ mod tests {
     use debug::PrintTrait;
     use cubit::types::vec2::{Vec2, Vec2Trait};
     use cubit::types::fixed::{Fixed, FixedTrait, FixedPrint};
+    use cubit::test::helpers::assert_precise;
 
     use super::{Vehicle, VehicleTrait, Controls, Direction, TURN_STEP};
 
     const TEN: felt252 = 184467440737095516160;
+    const TWENTY: felt252 = 368934881474191032320;
+    const FORTY: felt252 = 737869762948382064640;
+    const DEG_30_IN_RADS: felt252 = 9658715196994321226;
 
     #[test]
     #[available_gas(2000000)]
@@ -155,6 +194,67 @@ mod tests {
         );
         assert(
             vehicle.position.y == FixedTrait::from_felt(550599848097669227190), 'invalid position y'
+        );
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_vertices() {
+        let mut vehicle = Vehicle {
+            position: Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TWENTY)),
+            width: FixedTrait::from_felt(TEN),
+            length: FixedTrait::from_felt(TWENTY),
+            steer: FixedTrait::new(0_u128, false),
+            speed: FixedTrait::from_felt(TEN)
+        };
+
+        let mut vertices = vehicle.vertices();
+
+        assert(*vertices.at(0).x == FixedTrait::from_felt(TWENTY), 'invalid vertex_0');
+        assert(*vertices.at(0).y == FixedTrait::from_felt(FORTY), 'invalid vertex_0');
+
+        assert(*vertices.at(1).x == FixedTrait::new(0_u128, false), 'invalid vertex_1');
+        assert(*vertices.at(1).y == FixedTrait::from_felt(FORTY), 'invalid vertex_1');
+
+        assert(*vertices.at(2).x == FixedTrait::new(0_u128, false), 'invalid vertex_2');
+        assert(*vertices.at(2).y == FixedTrait::new(0_u128, false), 'invalid vertex_2');
+
+        assert(*vertices.at(3).x == FixedTrait::from_felt(TWENTY), 'invalid vertex_3');
+        assert(*vertices.at(3).y == FixedTrait::new(0_u128, false), 'invalid vertex_3');
+
+        vehicle = Vehicle {
+            position: Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TWENTY)),
+            width: FixedTrait::from_felt(TEN),
+            length: FixedTrait::from_felt(TWENTY),
+            steer: FixedTrait::new(DEG_30_IN_RADS, false),
+            speed: FixedTrait::from_felt(TEN)
+        };
+
+        vertices = vehicle.vertices();
+
+        assert_precise(
+            *vertices.at(0).x, 159753489849425216176, 'invalid rotated vertex_0', Option::None(())
+        );
+        assert_precise(
+            *vertices.at(0).y, 780675581541589591687, 'invalid rotated vertex_0', Option::None(())
+        );
+        assert_precise(
+            *vertices.at(1).x, -159753489849425216176, 'invalid rotated vertex_1', Option::None(())
+        );
+        assert_precise(
+            *vertices.at(1).y, 596208140804494075527, 'invalid rotated vertex_1', Option::None(())
+        );
+        assert_precise(
+            *vertices.at(2).x, 209181391624765631676, 'invalid rotated vertex_2', Option::None(())
+        );
+        assert_precise(
+            *vertices.at(2).y, -42805818593206973645, 'invalid rotated vertex_2', Option::None(())
+        );
+        assert_precise(
+            *vertices.at(3).x, 528688371323616432963, 'invalid rotated vertex_3', Option::None(())
+        );
+        assert_precise(
+            *vertices.at(3).y, 141661622143888542514, 'invalid rotated vertex_3', Option::None(())
         );
     }
 }
