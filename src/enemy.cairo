@@ -17,7 +17,7 @@ mod spawn_enemies {
 
     /// Spawn the enemies provided in the array.
     /// /!\ Panics if the number of enemies provided in the array don't match the expected number
-    /// of enemies defined in the [`suer::ENEMIES_NB`] constant.
+    /// of enemies defined in the [`super::ENEMIES_NB`] constant.
     /// There's no sanity check on any of the properties of the enemies so it's possible to spawn
     /// enemies with really high speed, on top of each other or too big for the grid.
     ///
@@ -25,7 +25,7 @@ mod spawn_enemies {
     ///
     /// * `ctx` - Context of the game.
     /// * `enemies` - Array of enemies. It is assumed that all the enemies in this array are valid.
-    fn execute(ctx: Context, enemies: Array<Vehicle>) {
+    fn execute(ctx: Context, model: felt252, enemies: Array<Vehicle>) {
         let enemies_len = enemies.len();
         assert(enemies_len == ENEMIES_NB.into(), 'Wrong enemies len provided');
         let mut i: usize = 0;
@@ -36,7 +36,7 @@ mod spawn_enemies {
             let enemy: Vehicle = *enemies[i];
             set !(
                 ctx.world,
-                i.into(),
+                (model, i).into(),
                 (Vehicle {
                     position: enemy.position,
                     length: enemy.length,
@@ -69,7 +69,7 @@ mod move_enemies {
     /// # Argument
     ///
     /// * `ctx` - Context of the game.
-    fn execute(ctx: Context) {
+    fn execute(ctx: Context, model: felt252) {
         // Iterate through the enemies and move them. If the are out of the grid respawn them at 
         // the top of the grid
         let mut i: u8 = 0;
@@ -77,7 +77,7 @@ mod move_enemies {
             if i == ENEMIES_NB {
                 break ();
             }
-            let enemy = get !(ctx.world, i.into(), Vehicle);
+            let enemy = get !(ctx.world, (model, i).into(), Vehicle);
             let enemy = move_enemy(enemy);
             set !(
                 ctx.world,
@@ -97,30 +97,26 @@ mod move_enemies {
     /// Vehicle
     /// +---+ 
     /// |   | ^
-    /// | x | | length
+    /// | x | | 2 * length
     /// |   | v
     /// +---+ 
-    /// <-->
-    /// width
     ///
     /// We respawn the enemy if the front of the car has disappeared from the grid
     /// <=> 
-    /// center.y + length / 2 <= 0.
+    /// center.y + length <= 0.
     /// As we need to make this smooth for the ui we'll respawn the car at the top of the grid - distance
     /// traveled during the tick.
     /// Ex: If the center of the enemy is at the position init = (16, 25) and its speed is 50 points/tick
-    /// We'll respawn the car at (16, TOP_GRID - (speed - init.y) + length / 2).
-    /// We add length / 2 so that the rear of the car is at the top of the grid.
+    /// We'll respawn the car at (16, TOP_GRID - (speed - init.y) + length).
     ///
     /// # Argument
     ///
     /// * `enemy`- The enemy to move.
     #[inline(always)]
     fn move_enemy(enemy: Vehicle) -> Vehicle {
-        let half_length = FixedTrait::new(enemy.length.mag / 2, false);
         let grid_height = FixedTrait::new(GRID_HEIGHT, false);
-        let new_y = if enemy.position.y <= enemy.speed + half_length {
-            grid_height - (enemy.speed - enemy.position.y) + half_length
+        let new_y = if enemy.position.y <= enemy.speed + enemy.length {
+            grid_height - (enemy.speed - enemy.position.y) + enemy.length
         } else {
             enemy.position.y - enemy.speed
         };
@@ -156,9 +152,9 @@ mod tests_move {
         let x = 16;
         let y = 25;
         let enemy = get_test_enemy(:x, :y);
-        // Top of the grid - (speed - remaining bottom grid) + enemy length / 2
-        // 1000 - (50 - 25) + 5 = 980
-        let expected_y = FixedTrait::new(980, false);
+        // Top of the grid - (speed - remaining bottom grid) + enemy length
+        // 1000 - (50 - 25) + 10 = 985
+        let expected_y = FixedTrait::new(985, false);
         let expected_position = Vec2Trait::new(FixedTrait::new(x, false), expected_y);
         let expected_enemy = Vehicle {
             position: expected_position,
@@ -168,7 +164,6 @@ mod tests_move {
             speed: enemy.speed,
         };
         let updated_enemy = move_enemy(enemy);
-
         assert(updated_enemy.position.x == expected_enemy.position.x, 'Wrong position x');
         assert(updated_enemy.position.y == expected_enemy.position.y, 'Wrong position y');
         assert(updated_enemy.length == expected_enemy.length, 'Wrong length');
