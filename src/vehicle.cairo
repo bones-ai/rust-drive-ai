@@ -89,21 +89,16 @@ impl VehicleImpl of VehicleTrait {
         let rel_vertex_0 = Vec2Trait::new(*self.width, *self.length); // relative to vehicle
         let rot_rel_vertex_0 = rotate(
             *rel_vertex_0, *sin_angle, *cos_angle
-        ); // rotated relative to vehicle
-        let vertex_0 = rot_rel_vertex_0 + *self.position; // relative to origin
+        ); // rotated rel to vehicle
+        let vertex_0 = *self.position + rot_rel_vertex_0; // relative to origin
 
         let rel_vertex_1 = Vec2Trait::new(-*self.width, *self.length);
         let rot_rel_vertex_1 = rotate(*rel_vertex_1, *sin_angle, *cos_angle);
-        let vertex_1 = rot_rel_vertex_1 + *self.position;
+        let vertex_1 = *self.position + rot_rel_vertex_1;
 
         // Get last two vertices by symmetry
-        let rel_vertex_2 = Vec2Trait::new(-*self.width, -*self.length);
-        let delta_vertex_2 = rel_vertex_0 - rot_rel_vertex_0; // negative of delta for vertex_0
-        let vertex_2 = rel_vertex_2 + delta_vertex_2 + *self.position;
-
-        let rel_vertex_3 = Vec2Trait::new(*self.width, -*self.length);
-        let delta_vertex_3 = rel_vertex_1 - rot_rel_vertex_1; // negative of delta for vertex_1
-        let vertex_3 = rel_vertex_3 + delta_vertex_3 + *self.position;
+        let vertex_2 = *self.position - rot_rel_vertex_0;
+        let vertex_3 = *self.position - rot_rel_vertex_1;
 
         // To reduce sin and cos calculations
         // let vertex_0 = rotate(Vec2Trait::new(*self.width, *self.length), sin_angle, cos_angle)
