@@ -41,7 +41,16 @@ mod spawn_enemies {
             if i == ENEMIES_NB.into() {
                 break ();
             }
-            set !(ctx.world, i.into(), (enemies[i]));
+            set !(
+                ctx.world,
+                i.into(),
+                (Enemy {
+                    position: enemy[i].position,
+                    length: enemy[i].length,
+                    width: enemy[i].width,
+                    speed: enemy[i].speed,
+                })
+            );
             i += 1;
         }
     }
