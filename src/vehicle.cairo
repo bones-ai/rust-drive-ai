@@ -65,8 +65,8 @@ impl VehicleImpl of VehicleTrait {
 
     fn drive(ref self: Vehicle) {
         // Velocity vector
-        let x_comp = self.speed * trig::sin(self.steer);
-        let y_comp = self.speed * trig::cos(self.steer);
+        let x_comp = self.speed * trig::sin_fast(self.steer);
+        let y_comp = self.speed * trig::cos_fast(self.steer);
         let v_0 = Vec2Trait::new(x_comp, y_comp);
 
         self.position = self.position + v_0;
@@ -123,20 +123,20 @@ mod tests {
 
         vehicle.drive();
 
-        assert(vehicle.position.x == FixedTrait::from_felt(TEN), 'invalid position x');
-        assert(
-            vehicle.position.y == FixedTrait::from_felt(368934881474199059390), 'invalid position y'
+        assert_precise(vehicle.position.x, TEN, 'invalid position x', Option::None(()));
+        assert_precise(
+            vehicle.position.y, 368934881474199059390, 'invalid position y', Option::None(())
         );
 
         vehicle.control(Controls { steer: Direction::Left(()) });
         vehicle.drive();
 
         // x: ~8.263527, y: ~29.84807913671
-        assert(
-            vehicle.position.x == FixedTrait::from_felt(152435010392070545930), 'invalid position x'
+        assert_precise(
+            vehicle.position.x, 152435159473296002840, 'invalid position x', Option::None(())
         );
-        assert(
-            vehicle.position.y == FixedTrait::from_felt(550599848097669227190), 'invalid position y'
+        assert_precise(
+            vehicle.position.y, 550599003738036609070, 'invalid position y', Option::None(())
         );
     }
 }
