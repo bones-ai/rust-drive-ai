@@ -2,18 +2,21 @@
 const ENEMIES_NB: u8 = 10;
 /// Height of the grid.
 const GRID_HEIGHT: u128 = 1000;
+const GRID_WIDTH: u128 = 400;
 
 // Road dimensions
 // 400x1000
 
 #[system]
 mod spawn_enemies {
+    use integer::{u256_safe_divmod, u256_as_non_zero};
     use traits::Into;
     use array::{Array, ArrayTrait};
-    use cubit::types::vec2::Vec2;
+    use cubit::types::vec2::{Vec2, Vec2Trait};
+    use cubit::types::FixedTrait;
     use dojo::world::Context;
     use drive_ai::Vehicle;
-    use super::ENEMIES_NB;
+    use super::{ENEMIES_NB, GRID_HEIGHT, GRID_WIDTH};
 
     /// Spawn the enemies provided in the array.
     /// /!\ Panics if the number of enemies provided in the array don't match the expected number
@@ -25,25 +28,28 @@ mod spawn_enemies {
     ///
     /// * `ctx` - Context of the game.
     /// * `enemies` - Array of enemies. It is assumed that all the enemies in this array are valid.
-    fn execute(ctx: Context, model: felt252, enemies: Array<Vehicle>) {
-        let enemies_len = enemies.len();
-        assert(enemies_len == ENEMIES_NB.into(), 'Wrong enemies len provided');
+    fn execute(ctx: Context, model: felt252) {
+        let length = FixedTrait::new_unscaled(32_u128, false);
+        let width = FixedTrait::new_unscaled(16_u128, false);
+        let steer = FixedTrait::new_unscaled(0_u128, false);
+        let speed = FixedTrait::new_unscaled(50_u128, false);
+
         let mut i: usize = 0;
         loop {
             if i == ENEMIES_NB.into() {
                 break ();
             }
-            let enemy: Vehicle = *enemies[i];
+
+            let numerator: u256 = model.into() * i.into();
+            let (_, x_rem) = u256_safe_divmod(numerator, u256_as_non_zero(GRID_WIDTH.into()));
+            let (_, y_rem) = u256_safe_divmod(numerator, u256_as_non_zero(GRID_HEIGHT.into()));
+
+            let position = Vec2Trait::new(
+                FixedTrait::new(x_rem.low, false), FixedTrait::new(y_rem.low, false)
+            );
+
             set !(
-                ctx.world,
-                (model, i).into(),
-                (Vehicle {
-                    position: enemy.position,
-                    length: enemy.length,
-                    width: enemy.width,
-                    steer: enemy.steer,
-                    speed: enemy.speed,
-                })
+                ctx.world, (model, i).into(), (Vehicle { position, length, width, steer, speed,  })
             );
             i += 1;
         }
@@ -81,7 +87,7 @@ mod move_enemies {
             let enemy = move_enemy(enemy);
             set !(
                 ctx.world,
-                i.into(),
+                (model, i).into(),
                 (Vehicle {
                     position: enemy.position,
                     length: enemy.length,
