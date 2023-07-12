@@ -1,3 +1,12 @@
+use orion::operators::tensor::core::Tensor;
+use orion::numbers::fixed_point::core::FixedType;
+
+#[starknet::interface]
+trait INN<T> {
+    #[view]
+    fn forward(self: @T, input: Tensor<FixedType>) -> usize;
+}
+
 #[system]
 mod model {
     use array::ArrayTrait;
@@ -9,8 +18,9 @@ mod model {
     use drive_ai::racer::Sensors;
     use drive_ai::vehicle::Controls;
     use drive_ai::vehicle::Direction;
-    use drive_ai::nn::INNDispatcherTrait;
-    use drive_ai::nn::INNDispatcher;
+
+    use super::INNDispatcherTrait;
+    use super::INNDispatcher;
 
     fn execute(ctx: Context, sensors: Sensors, nn_address: ContractAddress) -> Controls {
         let prediction: usize = INNDispatcher {
