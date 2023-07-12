@@ -52,6 +52,8 @@ trait VehicleTrait {
     fn vertices(self: @Vehicle) -> Span<Vec2>;
 }
 
+use debug::PrintTrait;
+
 impl VehicleImpl of VehicleTrait {
     fn control(ref self: Vehicle, controls: Controls) -> bool {
         let delta = match controls.steer {
@@ -109,6 +111,7 @@ mod tests {
     use cubit::types::vec2::{Vec2, Vec2Trait};
     use cubit::types::fixed::{Fixed, FixedTrait, FixedPrint};
     use cubit::test::helpers::assert_precise;
+    use array::SpanTrait;
 
     use super::{Vehicle, VehicleTrait, Controls, Direction, TURN_STEP};
 
@@ -181,51 +184,54 @@ mod tests {
 
         let mut vertices = vehicle.vertices();
 
-        assert(*vertices.at(0).x == FixedTrait::from_felt(TWENTY), 'invalid vertex_0');
-        assert(*vertices.at(0).y == FixedTrait::from_felt(FORTY), 'invalid vertex_0');
+        assert_precise(*(vertices.at(0).x), TWENTY, 'invalid vertex_0', Option::None(()));
+        assert_precise(*(vertices.at(0).y), FORTY, 'invalid vertex_0', Option::None(()));
 
-        assert(*vertices.at(1).x == FixedTrait::new(0_u128, false), 'invalid vertex_1');
-        assert(*vertices.at(1).y == FixedTrait::from_felt(FORTY), 'invalid vertex_1');
+        assert_precise(*(vertices.at(1).x), 0, 'invalid vertex_1', Option::None(()));
+        assert_precise(*(vertices.at(1).y), FORTY, 'invalid vertex_1', Option::None(()));
 
-        assert(*vertices.at(2).x == FixedTrait::new(0_u128, false), 'invalid vertex_2');
-        assert(*vertices.at(2).y == FixedTrait::new(0_u128, false), 'invalid vertex_2');
+        assert_precise(*(vertices.at(2).x), 0, 'invalid vertex_2', Option::None(()));
+        assert_precise(*(vertices.at(2).y), 0, 'invalid vertex_2', Option::None(()));
 
-        assert(*vertices.at(3).x == FixedTrait::from_felt(TWENTY), 'invalid vertex_3');
-        assert(*vertices.at(3).y == FixedTrait::new(0_u128, false), 'invalid vertex_3');
+        assert_precise(*(vertices.at(3).x), TWENTY, 'invalid vertex_3', Option::None(()));
+        assert_precise(*(vertices.at(3).y), 0, 'invalid vertex_3', Option::None(()));
 
         vehicle = Vehicle {
             position: Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TWENTY)),
             width: FixedTrait::from_felt(TEN),
             length: FixedTrait::from_felt(TWENTY),
-            steer: FixedTrait::new(DEG_30_IN_RADS, false),
+            steer: FixedTrait::from_felt(DEG_30_IN_RADS),
             speed: FixedTrait::from_felt(TEN)
         };
 
         vertices = vehicle.vertices();
 
         assert_precise(
-            *vertices.at(0).x, 159753489849425216176, 'invalid rotated vertex_0', Option::None(())
+            *(vertices.at(0).x), 159753090305067335160, 'invalid rotated vertex_0', Option::None(())
         );
         assert_precise(
-            *vertices.at(0).y, 780675581541589591687, 'invalid rotated vertex_0', Option::None(())
+            *(vertices.at(0).y), 780673828410437532220, 'invalid rotated vertex_0', Option::None(())
         );
         assert_precise(
-            *vertices.at(1).x, -159753489849425216176, 'invalid rotated vertex_1', Option::None(())
+            *(vertices.at(1).x),
+            -159752327071118592360,
+            'invalid rotated vertex_1',
+            Option::None(())
         );
         assert_precise(
-            *vertices.at(1).y, 596208140804494075527, 'invalid rotated vertex_1', Option::None(())
+            *(vertices.at(1).y), 596206769290316387460, 'invalid rotated vertex_1', Option::None(())
         );
         assert_precise(
-            *vertices.at(2).x, 209181391624765631676, 'invalid rotated vertex_2', Option::None(())
+            *(vertices.at(2).x), 209181791169123697160, 'invalid rotated vertex_2', Option::None(())
         );
         assert_precise(
-            *vertices.at(2).y, -42805818593206973645, 'invalid rotated vertex_2', Option::None(())
+            *(vertices.at(2).y), -42804065462055467580, 'invalid rotated vertex_2', Option::None(())
         );
         assert_precise(
-            *vertices.at(3).x, 528688371323616432963, 'invalid rotated vertex_3', Option::None(())
+            *(vertices.at(3).x), 528687208545309624680, 'invalid rotated vertex_3', Option::None(())
         );
         assert_precise(
-            *vertices.at(3).y, 141661622143888542514, 'invalid rotated vertex_3', Option::None(())
+            *(vertices.at(3).y), 141662993658065677180, 'invalid rotated vertex_3', Option::None(())
         );
     }
 }
