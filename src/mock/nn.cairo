@@ -17,14 +17,12 @@ mod nn_mock {
     use orion::performance::core::PerfomanceTrait;
     use orion::performance::implementations::impl_performance_fp::Performance_fp_i8;
 
-    use super::fc1::{fc1_bias, fc1_weights};
-
     #[storage]
     struct Storage {}
 
     fn forward(self: Tensor<FixedType>) -> usize {
-        let w = fc1_weights();
-        let b = fc1_bias();
+        let w = fc1::fc1_weights();
+        let b = fc1::fc1_bias();
 
         // YSCALE
         let mut shape = ArrayTrait::<usize>::new();
@@ -52,48 +50,48 @@ mod nn_mock {
             forward(input)
         }
     }
-}
 
-mod fc1 {
-    use array::ArrayTrait;
-    use orion::operators::tensor::core::{TensorTrait, Tensor, ExtraParams};
-    use orion::operators::tensor::implementations::impl_tensor_i8::Tensor_i8;
-    use orion::numbers::fixed_point::core::FixedImpl;
-    use orion::numbers::signed_integer::i8::i8;
+    mod fc1 {
+        use array::ArrayTrait;
+        use orion::operators::tensor::core::{TensorTrait, Tensor, ExtraParams};
+        use orion::operators::tensor::implementations::impl_tensor_i8::Tensor_i8;
+        use orion::numbers::fixed_point::core::FixedImpl;
+        use orion::numbers::signed_integer::i8::i8;
 
-    fn fc1_weights() -> Tensor<i8> {
-        let mut shape = ArrayTrait::<usize>::new();
-        shape.append(3);
-        shape.append(5);
-        let mut data = ArrayTrait::new();
-        data.append(i8 { mag: 1, sign: true });
-        data.append(i8 { mag: 2, sign: false });
-        data.append(i8 { mag: 3, sign: false });
-        data.append(i8 { mag: 4, sign: true });
-        data.append(i8 { mag: 5, sign: true });
-        data.append(i8 { mag: 1, sign: false });
-        data.append(i8 { mag: 2, sign: false });
-        data.append(i8 { mag: 3, sign: false });
-        data.append(i8 { mag: 4, sign: true });
-        data.append(i8 { mag: 1, sign: true });
-        data.append(i8 { mag: 2, sign: false });
-        data.append(i8 { mag: 3, sign: false });
-        data.append(i8 { mag: 4, sign: false });
-        data.append(i8 { mag: 1, sign: true });
-        data.append(i8 { mag: 2, sign: true });
-        let extra = Option::<ExtraParams>::None(());
-        TensorTrait::new(shape.span(), data.span(), extra)
-    }
+        fn fc1_weights() -> Tensor<i8> {
+            let mut shape = ArrayTrait::<usize>::new();
+            shape.append(3);
+            shape.append(5);
+            let mut data = ArrayTrait::new();
+            data.append(i8 { mag: 1, sign: true });
+            data.append(i8 { mag: 2, sign: false });
+            data.append(i8 { mag: 3, sign: false });
+            data.append(i8 { mag: 4, sign: true });
+            data.append(i8 { mag: 5, sign: true });
+            data.append(i8 { mag: 1, sign: false });
+            data.append(i8 { mag: 2, sign: false });
+            data.append(i8 { mag: 3, sign: false });
+            data.append(i8 { mag: 4, sign: true });
+            data.append(i8 { mag: 1, sign: true });
+            data.append(i8 { mag: 2, sign: false });
+            data.append(i8 { mag: 3, sign: false });
+            data.append(i8 { mag: 4, sign: false });
+            data.append(i8 { mag: 1, sign: true });
+            data.append(i8 { mag: 2, sign: true });
+            let extra = Option::<ExtraParams>::None(());
+            TensorTrait::new(shape.span(), data.span(), extra)
+        }
 
-    fn fc1_bias() -> Tensor<i8> {
-        let mut shape = ArrayTrait::<usize>::new();
-        shape.append(2);
-        let mut data = ArrayTrait::new();
-        data.append(i8 { mag: 1, sign: false });
-        data.append(i8 { mag: 2, sign: true });
-        data.append(i8 { mag: 3, sign: true });
-        let extra = Option::<ExtraParams>::None(());
-        TensorTrait::new(shape.span(), data.span(), extra)
+        fn fc1_bias() -> Tensor<i8> {
+            let mut shape = ArrayTrait::<usize>::new();
+            shape.append(2);
+            let mut data = ArrayTrait::new();
+            data.append(i8 { mag: 1, sign: false });
+            data.append(i8 { mag: 2, sign: true });
+            data.append(i8 { mag: 3, sign: true });
+            let extra = Option::<ExtraParams>::None(());
+            TensorTrait::new(shape.span(), data.span(), extra)
+        }
     }
 }
 
