@@ -175,6 +175,7 @@ fn distance_to_intersection(
 
 #[system]
 mod spawn_racer {
+    use array::ArrayTrait;
     use traits::Into;
     use cubit::types::FixedTrait;
     use cubit::types::Vec2Trait;
@@ -190,8 +191,7 @@ mod spawn_racer {
         );
         set !(
             ctx.world,
-            // TODO: Update to use uuid and emit event to get the racer id
-            1.into(),
+            model.into(),
             (
                 Racer {
                     driver: ctx.origin, model
@@ -205,21 +205,30 @@ mod spawn_racer {
             )
         );
 
+        let mut calldata = ArrayTrait::new();
+        calldata.append(model);
+        ctx.world.execute('spawn_enemies', calldata.span());
+
         return ();
     }
 }
 
 #[system]
 mod drive {
+    use array::ArrayTrait;
     use traits::Into;
     use dojo::world::Context;
     use drive_ai::Vehicle;
 
     use super::{Racer, distances_to_enemy};
 
-    fn execute(ctx: Context, car: usize) {
-        let (racer, vehicle) = get !(ctx.world, car.into(), (Racer, Vehicle));
+    fn execute(ctx: Context, model: felt252) {
+        let (racer, vehicle) = get !(ctx.world, model.into(), (Racer, Vehicle));
         let sensors = distances_to_enemy(vehicle, vehicle);
+
+        let mut calldata = ArrayTrait::new();
+        calldata.append(model);
+        ctx.world.execute('move_enemies', calldata.span());
     // 1. Compute sensors
     // 2. Run model forward pass
     // let controls = execute!(ctx.world, car.model, Sensors.serialize());
