@@ -29,10 +29,10 @@ mod spawn_enemies {
     /// * `ctx` - Context of the game.
     /// * `enemies` - Array of enemies. It is assumed that all the enemies in this array are valid.
     fn execute(ctx: Context, model: felt252) {
-        let length = FixedTrait::new_unscaled(32_u128, false);
-        let width = FixedTrait::new_unscaled(16_u128, false);
-        let steer = FixedTrait::new_unscaled(0_u128, false);
-        let speed = FixedTrait::new_unscaled(50_u128, false);
+        let length = FixedTrait::new(32_u128, false);
+        let width = FixedTrait::new(16_u128, false);
+        let steer = FixedTrait::new(0_u128, false);
+        let speed = FixedTrait::new(50_u128, false);
 
         let mut i: usize = 0;
         loop {
@@ -56,6 +56,61 @@ mod spawn_enemies {
     }
 }
 
+#[cfg(test)]
+mod tests_spawn {
+    use cubit::types::{FixedTrait, Vec2Trait};
+    use drive_ai::Vehicle;
+    use traits::Into;
+    use super::spawn_enemies::execute;
+    use array::{Array, ArrayTrait};
+    use dojo::world::IWorldDispatcherTrait;
+    use super::ENEMIES_NB;
+    use dojo::test_utils::spawn_test_world;
+
+    #[test]
+    #[available_gas(20000000000)]
+    fn test_spawn() {
+        // Get required component.
+        let mut components = ArrayTrait::new();
+        components.append(drive_ai::vehicle::vehicle::TEST_CLASS_HASH);
+        // Get required system.
+        let mut systems = ArrayTrait::new();
+        systems.append(super::spawn_enemies::TEST_CLASS_HASH);
+        // Get test world.
+        let world = spawn_test_world(components, systems);
+
+        let caller = starknet::contract_address_const::<0x0>();
+        // The execute method from the spawn system expects a Vehicle array 
+        // formatted as a felt252 array to spawn the enemies
+        let mut calldata: Array<felt252> = ArrayTrait::new();
+        // Model.
+        calldata.append(1);
+        world.execute('spawn_enemies'.into(), calldata.span());
+        let mut i: usize = 0;
+        let players: usize = ENEMIES_NB.into();
+        loop {
+            if i == players {
+                break ();
+            }
+            // We set the model to 1 earlier.
+            let enemy = world
+                .entity('Vehicle'.into(), (1, i).into(), 0, dojo::SerdeLen::<Vehicle>::len());
+            let expected_length = 32_felt252;
+            let expected_width = 16_felt252;
+            let expected_steer = 0_felt252;
+            let expected_speed = 50_felt252;
+
+            assert(*enemy[0] == i.into(), 'Wrong position x');
+            assert(*enemy[2] == i.into(), 'Wrong position y');
+            assert(*enemy[4] == expected_length, 'Wrong length');
+            assert(*enemy[6] == expected_width, 'Wrong width');
+            assert(*enemy[8] == expected_steer, 'Wrong steer');
+            assert(*enemy[10] == expected_speed, 'Wrong speed');
+
+            i += 1;
+        }
+    }
+}
 
 #[system]
 mod move_enemies {
