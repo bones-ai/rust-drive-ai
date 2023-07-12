@@ -228,7 +228,7 @@ mod drive {
 
         let mut calldata = ArrayTrait::new();
         calldata.append(model);
-        ctx.world.execute('move_enemies', calldata.span());
+        // ctx.world.execute('move_enemies', calldata.span());
     // 1. Compute sensors
     // 2. Run model forward pass
     // let controls = execute!(ctx.world, car.model, Sensors.serialize());
