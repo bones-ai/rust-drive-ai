@@ -40,9 +40,9 @@ struct Controls {
 const TURN_STEP: felt252 = 3219563738742341801;
 const HALF_PI: felt252 = 28976077338029890953;
 
-fn rotate(a: Vec2, sin_angle: Fixed, cos_angle: Fixed) -> Vec2 {
-    let new_x = a.x * cos_angle - a.y * sin_angle;
-    let new_y = a.x * sin_angle + a.y * cos_angle;
+fn rotate(a: Vec2, sin_theta: Fixed, cos_theta: Fixed) -> Vec2 {
+    let new_x = a.x * cos_theta - a.y * sin_theta;
+    let new_y = a.x * sin_theta + a.y * cos_theta;
     return Vec2Trait::new(new_x, new_y);
 }
 
@@ -76,48 +76,24 @@ impl VehicleImpl of VehicleTrait {
         self.position = self.position + v_0;
     }
 
-    // Optimizations:
-    // TODO: Write test
-    // Benchmark: ~63k steps
     fn vertices(self: @Vehicle) -> Span<Vec2> {
         let mut vertices = ArrayTrait::<Vec2>::new();
 
         // To reduce sin and cos calculations
-        let sin_angle = trig::sin_fast(*self.steer);
-        let cos_angle = trig::cos_fast(*self.steer);
+        let sin_theta = trig::sin_fast(*self.steer);
+        let cos_theta = trig::cos_fast(*self.steer);
 
         let rel_vertex_0 = Vec2Trait::new(*self.width, *self.length); // relative to vehicle
-        let rot_rel_vertex_0 = rotate(
-            *rel_vertex_0, *sin_angle, *cos_angle
-        ); // rotated rel to vehicle
+        let rot_rel_vertex_0 = rotate(rel_vertex_0, sin_theta, cos_theta); // rotated rel to vehicle
         let vertex_0 = *self.position + rot_rel_vertex_0; // relative to origin
 
         let rel_vertex_1 = Vec2Trait::new(-*self.width, *self.length);
-        let rot_rel_vertex_1 = rotate(*rel_vertex_1, *sin_angle, *cos_angle);
+        let rot_rel_vertex_1 = rotate(rel_vertex_1, sin_theta, cos_theta);
         let vertex_1 = *self.position + rot_rel_vertex_1;
 
         // Get last two vertices by symmetry
         let vertex_2 = *self.position - rot_rel_vertex_0;
         let vertex_3 = *self.position - rot_rel_vertex_1;
-
-        // To reduce sin and cos calculations
-        // let vertex_0 = rotate(Vec2Trait::new(*self.width, *self.length), sin_angle, cos_angle)
-        //     + *self.position;
-        // let vertex_1 = rotate(Vec2Trait::new(-*self.width, *self.length), sin_angle, cos_angle)
-        //     + *self.position;
-        // let vertex_2 = rotate(Vec2Trait::new(-*self.width, -*self.length), sin_angle, cos_angle)
-        //     + *self.position;
-        // let vertex_3 = rotate(Vec2Trait::new(*self.width, -*self.length), sin_angle, cos_angle)
-        //     + *self.position;
-
-        // let vertex_0 = Vec2Trait::new(*self.width, *self.length).rotate(*self.steer)
-        //     + *self.position;
-        // let vertex_1 = Vec2Trait::new(-*self.width, *self.length).rotate(*self.steer)
-        //     + *self.position;
-        // let vertex_2 = Vec2Trait::new(-*self.width, -*self.length).rotate(*self.steer)
-        //     + *self.position;
-        // let vertex_3 = Vec2Trait::new(*self.width, -*self.length).rotate(*self.steer)
-        //     + *self.position;
 
         vertices.append(vertex_0);
         vertices.append(vertex_1);
