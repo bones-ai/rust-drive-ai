@@ -3,7 +3,7 @@ mod enemy;
 mod math;
 mod model;
 mod racer;
-mod nn;
+mod mock;
 
 mod vehicle;
 use vehicle::{Vehicle, VehicleTrait};
