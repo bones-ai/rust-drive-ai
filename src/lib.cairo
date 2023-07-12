@@ -1,5 +1,6 @@
 mod enemy;
 
+mod math;
 mod model;
 mod racer;
 
