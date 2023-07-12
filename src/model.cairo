@@ -48,6 +48,8 @@ mod tests {
     use drive_ai::mock::nn::nn_mock;
     use dojo::world::{IWorldDispatcher, IWorldDispatcherTrait, world};
     use dojo::executor::executor;
+    use dojo::test_utils::spawn_test_world;
+
     use orion::operators::tensor::implementations::impl_tensor_fp::Tensor_fp;
     use orion::operators::tensor::core::{TensorTrait, ExtraParams};
     use orion::numbers::fixed_point::core::FixedTrait;
@@ -60,6 +62,8 @@ mod tests {
     #[test]
     #[available_gas(30000000)]
     fn test_model() {
+        let caller = starknet::contract_address_const::<0x0>();
+
         let nn_constructor_calldata = array::ArrayTrait::new();
         let (nn_address, _) = deploy_syscall(
             class_hash: nn_mock::TEST_CLASS_HASH.try_into().unwrap(),
@@ -69,13 +73,22 @@ mod tests {
         )
             .unwrap();
 
-        let world = spawn_empty_world();
-        world.register_system(super::model::TEST_CLASS_HASH.try_into().unwrap());
+        // components
+        let mut components = array::ArrayTrait::new();
+        //systems
+        let mut systems = array::ArrayTrait::new();
+        systems.append(model::TEST_CLASS_HASH);
+
+        // deploy executor, world and register components/systems
+        let world = spawn_test_world(components, systems);
+
+        let spawn_call_data = array::ArrayTrait::new();
+        world.execute('spawn'.into(), spawn_call_data.span()); // Panics here: Deployed contract not found in registry
 
         let sensors = create_sensors();
-        let mut calldata = sensors.span().snapshot.clone();
-        calldata.append(nn_address.into());
-        world.execute('model'.into(), calldata.span());
+        let mut model_call_data = sensors.span().snapshot.clone();
+        model_call_data.append(nn_address.into());
+        world.execute('model'.into(), model_call_data.span());
     //TODO: check result. 
     }
 
@@ -94,29 +107,6 @@ mod tests {
         let mut serialized = ArrayTrait::new();
         tensor.serialize(ref serialized);
         serialized
-    }
-
-    fn spawn_empty_world() -> IWorldDispatcher {
-        // Deploy executor contract
-        let executor_constructor_calldata = array::ArrayTrait::new();
-        let (executor_address, _) = deploy_syscall(
-            executor::TEST_CLASS_HASH.try_into().unwrap(),
-            0,
-            executor_constructor_calldata.span(),
-            false
-        )
-            .unwrap();
-
-        // Deploy world contract
-        let mut constructor_calldata = array::ArrayTrait::new();
-        constructor_calldata.append(executor_address.into());
-        let (world_address, _) = deploy_syscall(
-            world::TEST_CLASS_HASH.try_into().unwrap(), 0, constructor_calldata.span(), false
-        )
-            .unwrap();
-        let world = IWorldDispatcher { contract_address: world_address };
-
-        world
     }
 }
 
