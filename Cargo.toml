@@ -15,6 +15,7 @@ dojo-client = { git = "https://github.com/dojoengine/dojo", rev = "c2aa73ebb3f54
 eyre = "0.6"
 rand = "0.8.5"
 starknet = "0.4.0"
+bevy-tokio-tasks = "0.10"
 url = "2.2.2"
 
 [workspace]

@@ -1,5 +1,4 @@
 use bevy::log;
-use bevy::tasks::{AsyncComputeTaskPool, Task};
 use bevy::{math::vec3, prelude::*};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_pancam::{PanCam, PanCamPlugin};
@@ -8,6 +7,7 @@ use bevy_rapier2d::prelude::{
 };
 use dojo_client::contract::world::WorldContractReader;
 // use eyre::{bail, Result};
+use bevy_tokio_tasks::{TokioTasksPlugin, TokioTasksRuntime};
 use starknet::accounts::ConnectedAccount;
 use starknet::accounts::SingleOwnerAccount;
 use starknet::core::chain_id;
@@ -186,7 +186,8 @@ struct DojoPlugin;
 
 impl Plugin for DojoPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<PollWorldState>()
+        app.add_plugin(TokioTasksPlugin::default())
+            .add_event::<PollWorldState>()
             .add_startup_system(setup_dojo)
             .add_system(poll_world);
         // .add_systems((time_to_sync, poll_world));
@@ -232,15 +233,11 @@ fn setup_dojo(mut poll_event: EventWriter<PollWorldState>) {
 
 struct PollWorldState;
 
-#[derive(Component)]
-struct PollTask(Task<()>);
-
-fn poll_world(mut events: EventReader<PollWorldState>, mut commands: Commands) {
+fn poll_world(mut events: EventReader<PollWorldState>, runtime: ResMut<TokioTasksRuntime>) {
     events.iter().for_each(|_| {
         log::info!("TODO: poll world state!");
 
-        let thread_pool = AsyncComputeTaskPool::get();
-        let task = thread_pool.spawn(async move {
+        runtime.spawn_background_task(|_ctx| async move {
             // TODO: create startup system to create world
             let url = Url::parse("http://0.0.0.0:5050").expect("Failed to parse URL");
             let account_address = FieldElement::from_str(
@@ -275,7 +272,5 @@ fn poll_world(mut events: EventReader<PollWorldState>, mut commands: Commands) {
 
             log::info!("{:#?}", moves);
         });
-
-        commands.spawn(PollTask(task));
     });
 }
