@@ -46,8 +46,6 @@ trait VehicleTrait {
     fn vertices(self: @Vehicle) -> Span<Vec2>;
 }
 
-use debug::PrintTrait;
-
 impl VehicleImpl of VehicleTrait {
     fn control(ref self: Vehicle, controls: Controls) -> bool {
         let delta = match controls.steer {
@@ -56,7 +54,6 @@ impl VehicleImpl of VehicleTrait {
             Direction::Right(()) => FixedTrait::from_felt(TURN_STEP),
         };
 
-        // TODO: Assert bounds
         self.steer = self.steer + delta;
 
         (self.steer >= FixedTrait::from_felt(-1 * HALF_PI)

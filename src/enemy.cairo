@@ -2,10 +2,19 @@
 const ENEMIES_NB: u8 = 10;
 /// Height of the grid.
 const GRID_HEIGHT: u128 = 1000;
+// Width of the grid.
 const GRID_WIDTH: u128 = 400;
 
-// Road dimensions
-// 400x1000
+const CAR_HEIGHT: u128 = 32;
+const CAR_WIDTH: u128 = 16;
+const CAR_VELOCITY: u128 = 50;
+
+#[derive(Component, Serde, SerdeLen, Drop, Copy)]
+struct Position {
+    // Current vehicle position
+    x: u128,
+    y: u128,
+}
 
 #[system]
 mod spawn_enemies {
@@ -16,7 +25,7 @@ mod spawn_enemies {
     use cubit::types::FixedTrait;
     use dojo::world::Context;
     use drive_ai::Vehicle;
-    use super::{ENEMIES_NB, GRID_HEIGHT, GRID_WIDTH};
+    use super::{Position, ENEMIES_NB, GRID_HEIGHT, GRID_WIDTH};
 
     /// Spawn the enemies provided in the array.
     /// /!\ Panics if the number of enemies provided in the array don't match the expected number
@@ -29,11 +38,6 @@ mod spawn_enemies {
     /// * `ctx` - Context of the game.
     /// * `enemies` - Array of enemies. It is assumed that all the enemies in this array are valid.
     fn execute(ctx: Context, model: felt252) {
-        let length = FixedTrait::new(32_u128, false);
-        let width = FixedTrait::new(16_u128, false);
-        let steer = FixedTrait::new(0_u128, false);
-        let speed = FixedTrait::new(50_u128, false);
-
         let mut i: usize = 0;
         loop {
             if i == ENEMIES_NB.into() {
@@ -44,13 +48,7 @@ mod spawn_enemies {
             let (_, x_rem) = u256_safe_divmod(numerator, u256_as_non_zero(GRID_WIDTH.into()));
             let (_, y_rem) = u256_safe_divmod(numerator, u256_as_non_zero(GRID_HEIGHT.into()));
 
-            let position = Vec2Trait::new(
-                FixedTrait::new(x_rem.low, false), FixedTrait::new(y_rem.low, false)
-            );
-
-            set !(
-                ctx.world, (model, i).into(), (Vehicle { position, length, width, steer, speed,  })
-            );
+            set !(ctx.world, (model, i).into(), (Position { x: x_rem.low, y: y_rem.low }));
             i += 1;
         }
     }
@@ -59,12 +57,11 @@ mod spawn_enemies {
 #[cfg(test)]
 mod tests_spawn {
     use cubit::types::{FixedTrait, Vec2Trait};
-    use drive_ai::Vehicle;
     use traits::Into;
     use super::spawn_enemies::execute;
     use array::{Array, ArrayTrait};
     use dojo::world::IWorldDispatcherTrait;
-    use super::ENEMIES_NB;
+    use super::{Position, ENEMIES_NB};
     use dojo::test_utils::spawn_test_world;
 
     #[test]
@@ -93,19 +90,11 @@ mod tests_spawn {
                 break ();
             }
             // We set the model to 1 earlier.
-            let enemy = world
-                .entity('Vehicle'.into(), (1, i).into(), 0, dojo::SerdeLen::<Vehicle>::len());
-            let expected_length = 32_felt252;
-            let expected_width = 16_felt252;
-            let expected_steer = 0_felt252;
-            let expected_speed = 50_felt252;
+            let position = world
+                .entity('Position'.into(), (1, i).into(), 0, dojo::SerdeLen::<Position>::len());
 
-            assert(*enemy[0] == i.into(), 'Wrong position x');
-            assert(*enemy[2] == i.into(), 'Wrong position y');
-            assert(*enemy[4] == expected_length, 'Wrong length');
-            assert(*enemy[6] == expected_width, 'Wrong width');
-            assert(*enemy[8] == expected_steer, 'Wrong steer');
-            assert(*enemy[10] == expected_speed, 'Wrong speed');
+            assert(*position[0] == i.into(), 'Wrong position x');
+            assert(*position[1] == i.into(), 'Wrong position y');
 
             i += 1;
         }
@@ -115,13 +104,13 @@ mod tests_spawn {
 #[system]
 mod move_enemies {
     use traits::Into;
-    use cubit::types::FixedTrait;
+    use cubit::types::{Fixed, FixedTrait};
     use cubit::types::Vec2Trait;
 
     use dojo::world::Context;
 
     use drive_ai::Vehicle;
-    use super::{ENEMIES_NB, GRID_HEIGHT};
+    use super::{Position, CAR_HEIGHT, CAR_VELOCITY, ENEMIES_NB, GRID_HEIGHT};
 
 
     /// Executes a tick for the enemies.
@@ -138,19 +127,9 @@ mod move_enemies {
             if i == ENEMIES_NB {
                 break ();
             }
-            let enemy = get !(ctx.world, (model, i).into(), Vehicle);
-            let enemy = move_enemy(enemy);
-            set !(
-                ctx.world,
-                (model, i).into(),
-                (Vehicle {
-                    position: enemy.position,
-                    length: enemy.length,
-                    width: enemy.width,
-                    steer: enemy.steer,
-                    speed: enemy.speed,
-                })
-            );
+            let position = get !(ctx.world, (model, i).into(), Position);
+            let position = move(position, CAR_HEIGHT, CAR_VELOCITY);
+            set !(ctx.world, (model, i).into(), (Position { x: position.x, y: position.y,  }));
             i += 1;
         }
     }
@@ -174,89 +153,61 @@ mod move_enemies {
     ///
     /// * `enemy`- The enemy to move.
     #[inline(always)]
-    fn move_enemy(enemy: Vehicle) -> Vehicle {
-        let grid_height = FixedTrait::new(GRID_HEIGHT, false);
-        let new_y = if enemy.position.y <= enemy.speed + enemy.length {
-            grid_height - (enemy.speed - enemy.position.y) + enemy.length
+    fn move(position: Position, height: u128, velocity: u128) -> Position {
+        let grid_height = GRID_HEIGHT;
+        let y = position.y;
+        let x = position.x;
+
+        let new_y = if y <= velocity + height {
+            grid_height - (velocity - y) + height
         } else {
-            enemy.position.y - enemy.speed
+            y - velocity
         };
-        let new_position = Vec2Trait::new(enemy.position.x, new_y);
-        Vehicle {
-            position: new_position,
-            length: enemy.length,
-            width: enemy.width,
-            steer: enemy.steer,
-            speed: enemy.speed,
-        }
+
+        Position { x, y: new_y }
     }
 }
 
 #[cfg(test)]
 mod tests_move {
     use cubit::types::{FixedTrait, Vec2Trait};
-    use drive_ai::Vehicle;
-    use super::move_enemies::move_enemy;
-
-    fn get_test_enemy(x: u128, y: u128) -> Vehicle {
-        let position = Vec2Trait::new(FixedTrait::new(x, false), FixedTrait::new(y, false));
-        let length = FixedTrait::new(10, false);
-        let width = FixedTrait::one();
-        let steer = FixedTrait::new(0, false);
-        let speed = FixedTrait::new(50, false);
-        Vehicle { position: position, length: length, width: width, steer: steer, speed: speed,  }
-    }
+    use super::move_enemies::move;
+    use super::Position;
 
     #[test]
     #[available_gas(2000000)]
-    fn test_move_enemy_respawns_on_top() {
+    fn test_move_respawns_on_top() {
         let x = 16;
         let y = 25;
-        let enemy = get_test_enemy(:x, :y);
-        // Top of the grid - (speed - remaining bottom grid) + enemy length
+        let height = 10;
+        let width = 1;
+        let velocity = 50;
+        let position = Position { x: x, y: y };
+        // Top of the grid - (velocity - remaining bottom grid) + enemy height
         // 1000 - (50 - 25) + 10 = 985
-        let expected_y = FixedTrait::new(985, false);
-        let expected_position = Vec2Trait::new(FixedTrait::new(x, false), expected_y);
-        let expected_enemy = Vehicle {
-            position: expected_position,
-            length: enemy.length,
-            width: enemy.width,
-            steer: enemy.steer,
-            speed: enemy.speed,
-        };
-        let updated_enemy = move_enemy(enemy);
-        assert(updated_enemy.position.x == expected_enemy.position.x, 'Wrong position x');
-        assert(updated_enemy.position.y == expected_enemy.position.y, 'Wrong position y');
-        assert(updated_enemy.length == expected_enemy.length, 'Wrong length');
-        assert(updated_enemy.width == expected_enemy.width, 'Wrong width');
-        assert(updated_enemy.steer == expected_enemy.steer, 'Wrong steer');
-        assert(updated_enemy.speed == expected_enemy.speed, 'Wrong speed');
+        let expect_y = 985;
+
+        let got_position = move(position, height, velocity);
+        assert(got_position.x == x, 'Wrong position x');
+        assert(got_position.y == expect_y, 'Wrong position y');
     }
 
     #[test]
     #[available_gas(2000000)]
-    fn test_move_enemy_without_respawn() {
+    fn test_move_without_respawn() {
         let x = 16;
         let y = 980;
-        let enemy = get_test_enemy(:x, :y);
+        let height = 10;
+        let width = 1;
+        let velocity = 50;
+        let position = Position { x: x, y: y };
         // y - speed
         // 980 - 50 = 930
-        let expected_y = FixedTrait::new(930, false);
-        let expected_position = Vec2Trait::new(FixedTrait::new(x, false), expected_y);
-        let expected_enemy = Vehicle {
-            position: expected_position,
-            length: enemy.length,
-            width: enemy.width,
-            steer: enemy.steer,
-            speed: enemy.speed,
-        };
-        let updated_enemy = move_enemy(enemy);
+        let expect_y = 930;
+        let expect_position = Position { x, y: expect_y };
+        let got_position = move(position, height, velocity);
 
-        assert(updated_enemy.position.x == expected_enemy.position.x, 'Wrong position x');
-        assert(updated_enemy.position.y == expected_enemy.position.y, 'Wrong position y');
-        assert(updated_enemy.length == expected_enemy.length, 'Wrong length');
-        assert(updated_enemy.width == expected_enemy.width, 'Wrong width');
-        assert(updated_enemy.steer == expected_enemy.steer, 'Wrong steer');
-        assert(updated_enemy.speed == expected_enemy.speed, 'Wrong speed');
+        assert(got_position.x == expect_position.x, 'Wrong position x');
+        assert(got_position.y == expect_position.y, 'Wrong position y');
     }
 }
