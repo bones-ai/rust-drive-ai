@@ -1,6 +1,6 @@
 use cubit::types::vec2::{Vec2, Vec2Trait};
 use cubit::types::fixed::{Fixed, FixedTrait, ONE_u128};
-use cubit::math::trig;
+use cubit::math::{trig, comp};
 use starknet::ContractAddress;
 use drive_ai::{Vehicle, VehicleTrait, Enemy};
 use array::{ArrayTrait, SpanTrait};
@@ -51,9 +51,9 @@ fn distances_to_enemy(vehicle: Vehicle, enemy: Vehicle) -> Array<Fixed> {
             Option::Some(ray) => {
                 // Endpoints of Ray
                 let p1 = vehicle.position;
-                let delta1 = Vec2Trait::new(
-                    ray_length * trig::cos(ray), ray_length * trig::sin(ray)
-                );
+                let cos_ray = trig::cos(ray);
+                let sin_ray = trig::sin(ray);
+                let delta1 = Vec2Trait::new(ray_length * cos_ray, ray_length * sin_ray);
                 let q1 = p1 + delta1;
 
                 // Counter for inner loop: check each edge of Enemy for intersection this sensor's ray
@@ -75,7 +75,8 @@ fn distances_to_enemy(vehicle: Vehicle, enemy: Vehicle) -> Array<Fixed> {
                     let q2 = enemy_vertices.at(q2_idx);
 
                     if does_intersect(p1, q1, *p2, *q2) {
-                        distances_to_obstacle.append(distance_to_intersection(p1, q1, *p2, *q2));
+                        distances_to_obstacle
+                            .append(distance_to_intersection(p1, q1, *p2, *q2, cos_ray, sin_ray));
                     } else {
                         distances_to_obstacle.append(FixedTrait::new(0, false));
                     }
@@ -153,25 +154,22 @@ fn orientation(a: Vec2, b: Vec2, c: Vec2) -> u8 {
 
 // TODO finish
 // Finds distance from p1 to intersection of segments p1q1 and p2q2
-fn distance_to_intersection(p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2) -> Fixed {
-    let two = FixedTrait::new_unscaled(2_u128, false);
-
-    // difference in starting points
-    let p_diff = Vec2Trait::new(p1.x - p2.x, p1.y - p2.y);
-
-    let cross_product = p_diff.cross(q2);
-    let determinant = (q1.x * q2.y) - (q1.y * q2.x);
-
-    if cross_product == FixedTrait::new(0, false) { // p_diff and q2 are colinear
-        // TODO find y-coordinate of intersection only
-        return FixedTrait::new(0, false);
-    } else {
-        let t = (q2.x * (p1.y - p2.y) - q2.y * (p1.x - p2.x)) / determinant;
-
-        let intersection = Vec2Trait::new(p1.x + t * (q1.x - p1.x), p1.y + t * (q1.y - p1.y));
-
-        let partial_ray = intersection - p1;
-        return (partial_ray.x.pow(two) + partial_ray.y.pow(two)).sqrt();
+fn distance_to_intersection(
+    p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2, cos_ray: Fixed, sin_ray: Fixed
+) -> Fixed {
+    // All enemy edges are either vertical or horizontal
+    if p2.y == q2.y { // Enemy edge is horizontal
+        if p2.y == p1.y { // Ray is colinear with enemy edge
+            return comp::min((p2.x - p1.x).abs(), (q2.x - p1.x).abs());
+        } else {
+            return ((p2.y - p1.y) / cos_ray).abs();
+        }
+    } else { // Enemy edge is vertical
+        if p2.x == p1.x { // Ray is colinear with enemy edge
+            return comp::min((p2.y - p1.y).abs(), (q2.y - p1.y).abs());
+        } else {
+            return ((p2.x - p1.x) / sin_ray).abs();
+        }
     }
 }
 

@@ -89,10 +89,10 @@ impl VehicleImpl of VehicleTrait {
         let vertex_3 = Vec2 { x: neg(cos_x) + sin_y, y: neg(sin_x) - cos_y } + *self.position;
         let vertex_4 = Vec2 { x: cos_x + sin_y, y: sin_x - cos_y } + *self.position;
 
+        vertices.append(vertex_0);
         vertices.append(vertex_1);
         vertices.append(vertex_2);
         vertices.append(vertex_3);
-        vertices.append(vertex_4);
         vertices.span()
     }
 }
