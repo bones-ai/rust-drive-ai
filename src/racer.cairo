@@ -251,7 +251,8 @@ mod spawn_racer {
             (
                 Racer {
                     driver: ctx.origin, model
-                    }, Vehicle {
+                },
+                Vehicle {
                     position,
                     steer: FixedTrait::new_unscaled(0_u128, false),
                     speed: FixedTrait::new_unscaled(50_u128, false),
@@ -261,7 +262,7 @@ mod spawn_racer {
 
         let mut calldata = ArrayTrait::new();
         calldata.append(model);
-        ctx.world.execute('spawn_enemies', calldata.span());
+        // ctx.world.execute('spawn_enemies', calldata.span());
 
         return ();
     }

@@ -85,7 +85,7 @@ fn generation_reset_system(
     sim_stats.fitness.push(max_fitness);
 
     // respawn everything
-    spawn_enemies(&mut commands, &asset_server);
+    // spawn_enemies(&mut commands, &asset_server);
     spawn_bound_trucks(&mut commands, &asset_server);
     spawn_cars(
         &mut commands,

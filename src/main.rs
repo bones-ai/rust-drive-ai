@@ -1,23 +1,12 @@
-use bevy::log;
 use bevy::{math::vec3, prelude::*};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_rapier2d::prelude::{
     Collider, NoUserData, RapierConfiguration, RapierPhysicsPlugin, RigidBody,
 };
-use dojo_client::contract::world::WorldContract;
-// use eyre::{bail, Result};
-use bevy_tokio_tasks::{TokioTasksPlugin, TokioTasksRuntime};
-use starknet::accounts::Account;
-use starknet::accounts::SingleOwnerAccount;
-use starknet::core::types::{BlockId, BlockTag, FieldElement};
-use starknet::core::utils::cairo_short_string_to_felt;
-use starknet::providers::jsonrpc::HttpTransport;
-use starknet::providers::JsonRpcClient;
-use starknet::signers::{LocalWallet, SigningKey};
-use std::str::FromStr;
 use steering::{
     car::{Car, CarPlugin},
+    dojo::DojoPlugin,
     gui::GuiPlugin,
     population::PopulationPlugin,
 };
@@ -25,7 +14,6 @@ use steering::{
     enemy::{spawn_bound_trucks, EnemyPlugin},
     *,
 };
-use url::Url;
 
 fn main() {
     App::new()
@@ -51,7 +39,7 @@ fn main() {
         // .add_plugin(LogDiagnosticsPlugin::default())
         // .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(CarPlugin)
-        .add_plugin(EnemyPlugin)
+        // .add_plugin(EnemyPlugin)
         .add_plugin(PopulationPlugin)
         .add_plugin(GuiPlugin)
         .add_plugin(DojoPlugin)
@@ -180,123 +168,4 @@ fn settings_system(
         *sim_stats = SimStats::default();
         sim_stats.generation_count = 0;
     }
-}
-
-struct DojoPlugin;
-
-impl Plugin for DojoPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_plugin(TokioTasksPlugin::default())
-            .add_event::<PollWorldState>()
-            .add_startup_system(setup_dojo)
-            .add_system(poll_world);
-        // .add_systems((time_to_sync, poll_world));
-    }
-}
-
-fn setup_dojo(mut poll_event: EventWriter<PollWorldState>) {
-    poll_event.send(PollWorldState);
-}
-
-// fn setup_dojo(mut commands: Commands) {
-//     commands.spawn(DojoSyncTime::from_seconds(1.00));
-// }
-
-// #[derive(Component)]
-// struct DojoSyncTime {
-//     timer: Timer,
-// }
-
-// impl DojoSyncTime {
-//     fn from_seconds(duration: f32) -> Self {
-//         Self {
-//             timer: Timer::from_seconds(duration, TimerMode::Repeating),
-//         }
-//     }
-// }
-
-// fn time_to_sync(
-//     mut q: Query<&mut DojoSyncTime>,
-//     time: Res<Time>,
-//     mut poll_event: EventWriter<PollWorldState>,
-// ) {
-//     let mut dojo_time = q.single_mut();
-
-//     if dojo_time.timer.just_finished() {
-//         dojo_time.timer.reset();
-
-//         poll_event.send(PollWorldState);
-//     } else {
-//         dojo_time.timer.tick(time.delta());
-//     }
-// }
-
-struct PollWorldState;
-
-fn poll_world(mut events: EventReader<PollWorldState>, runtime: ResMut<TokioTasksRuntime>) {
-    events.iter().for_each(|_| {
-        log::info!("TODO: poll world state!");
-
-        runtime.spawn_background_task(|_ctx| async move {
-            // TODO: create startup system to create world
-            let url = Url::parse("http://0.0.0.0:5050").unwrap();
-            let account_address = FieldElement::from_str(
-                "0x03ee9e18edc71a6df30ac3aca2e0b02a198fbce19b7480a63a0d71cbd76652e0",
-            )
-            .unwrap();
-            let account = SingleOwnerAccount::new(
-                JsonRpcClient::new(HttpTransport::new(url)),
-                LocalWallet::from_signing_key(SigningKey::from_secret_scalar(
-                    FieldElement::from_str(
-                        "0x0300001800000000300000180000000000030000000000003006001800006600",
-                    )
-                    .unwrap(),
-                )),
-                account_address,
-                cairo_short_string_to_felt("KATANA").unwrap(),
-            );
-
-            let world_address = FieldElement::from_str(
-                "0x7d17bb24b59cb371c9ca36b79efca27fe53318e26340df3d8623dba5a7b9e5f",
-            )
-            .unwrap();
-            let block_id = BlockId::Tag(BlockTag::Latest);
-            let world = WorldContract::new(world_address, &account);
-
-            let spawn = world.system("spawn", block_id).await.unwrap();
-            spawn.execute(vec![]).await.unwrap();
-
-            let component = world.component("Moves", block_id).await.unwrap();
-            let moves = component
-                .entity(FieldElement::ZERO, vec![account_address], block_id)
-                .await
-                .unwrap();
-
-            log::info!("moves: {:#?}", moves);
-
-            let move_system = world.system("move", block_id).await.unwrap();
-
-            move_system.execute(vec![FieldElement::ONE]).await.unwrap();
-            move_system
-                .execute(vec![FieldElement::THREE])
-                .await
-                .unwrap();
-
-            let moves = component
-                .entity(FieldElement::ZERO, vec![account.address()], block_id)
-                .await
-                .unwrap();
-
-            log::info!("moves: {:#?}", moves);
-
-            let position_component = world.component("Position", block_id).await.unwrap();
-
-            let position = position_component
-                .entity(FieldElement::ZERO, vec![account.address()], block_id)
-                .await
-                .unwrap();
-
-            log::info!("position: {:#?}", position);
-        });
-    });
 }
