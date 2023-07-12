@@ -2,7 +2,7 @@ use cubit::types::vec2::{Vec2, Vec2Trait};
 use cubit::types::fixed::{Fixed, FixedTrait, ONE_u128};
 use cubit::math::trig;
 use starknet::ContractAddress;
-use drive_ai::{Vehicle, VehicleTrait, Enemy};
+use drive_ai::{Vehicle, VehicleTrait};
 use array::{ArrayTrait, SpanTrait};
 
 #[derive(Component, Serde, SerdeLen, Drop, Copy)]

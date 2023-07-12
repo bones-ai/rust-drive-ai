@@ -1,5 +1,4 @@
 mod enemy;
-use enemy::Enemy;
 
 mod model;
 mod racer;
