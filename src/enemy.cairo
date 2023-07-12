@@ -127,9 +127,10 @@ mod move_enemies {
             if i == ENEMIES_NB {
                 break ();
             }
-            let position = get !(ctx.world, (model, i).into(), Position);
+            let key = (model, i).into();
+            let position = get !(ctx.world, key, Position);
             let position = move(position, CAR_HEIGHT, CAR_VELOCITY);
-            set !(ctx.world, (model, i).into(), (Position { x: position.x, y: position.y,  }));
+            set !(ctx.world, key, (Position { x: position.x, y: position.y }));
             i += 1;
         }
     }
