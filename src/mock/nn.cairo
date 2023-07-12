@@ -1,4 +1,5 @@
 // This is a mock NN contract. It doesn't reflect a real neural network.
+// TODO: write script to generate Starknet contract based on offchain trained model.
 #[starknet::contract]
 mod nn_mock {
     use array::{ArrayTrait, SpanTrait};
