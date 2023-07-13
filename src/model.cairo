@@ -4,7 +4,9 @@ use orion::numbers::fixed_point::core::FixedType;
 #[starknet::interface]
 trait INN<T> {
     #[view]
-    fn forward(self: @T, input: Tensor<FixedType>) -> usize;
+    fn forward(
+        self: @T, 
+        input: Tensor<FixedType>) -> usize;
 }
 
 #[system]
@@ -15,6 +17,7 @@ mod model {
     use drive_ai::racer::Sensors;
     use drive_ai::vehicle::{Controls, Direction};
     use super::{INNDispatcherTrait, INNDispatcher};
+
 
     fn execute(ctx: Context, sensors: Sensors, nn_address: ContractAddress) -> Controls {
         let prediction: usize = INNDispatcher {
@@ -40,30 +43,44 @@ mod model {
 
 #[cfg(test)]
 mod tests {
+    use core::result::ResultTrait;
+    use core::serde::Serde;
+    use clone::Clone;
     use array::ArrayTrait;
     use traits::{TryInto, Into};
     use option::OptionTrait;
     use starknet::syscalls::deploy_syscall;
     use starknet::{ContractAddress, Felt252TryIntoContractAddress, ContractAddressIntoFelt252};
+
     use drive_ai::mock::nn::nn_mock;
+    use drive_ai::racer::Sensors;
+
     use dojo::world::{IWorldDispatcher, IWorldDispatcherTrait, world};
-    use dojo::executor::executor;
     use dojo::test_utils::spawn_test_world;
 
     use orion::operators::tensor::implementations::impl_tensor_fp::Tensor_fp;
     use orion::operators::tensor::core::{TensorTrait, ExtraParams};
     use orion::numbers::fixed_point::core::FixedTrait;
     use orion::numbers::fixed_point::implementations::impl_16x16::FP16x16Impl;
+
     use super::{model, Tensor, FixedType};
-    use core::result::ResultTrait;
-    use core::serde::Serde;
-    use clone::Clone;
+
 
     #[test]
     #[available_gas(30000000)]
     fn test_model() {
         let caller = starknet::contract_address_const::<0x0>();
 
+        // Get required component.
+        let mut components = array::ArrayTrait::new();
+        // components.append(drive_ai::vehicle::vehicle::TEST_CLASS_HASH);
+        // Get required system.
+        let mut systems = array::ArrayTrait::new();
+        systems.append(model::TEST_CLASS_HASH);
+        // Get test world.
+        let world = spawn_test_world(components, systems);
+
+        // Deploy NN contract
         let nn_constructor_calldata = array::ArrayTrait::new();
         let (nn_address, _) = deploy_syscall(
             class_hash: nn_mock::TEST_CLASS_HASH.try_into().unwrap(),
@@ -73,23 +90,12 @@ mod tests {
         )
             .unwrap();
 
-        // components
-        let mut components = array::ArrayTrait::new();
-        //systems
-        let mut systems = array::ArrayTrait::new();
-        systems.append(model::TEST_CLASS_HASH);
-
-        // deploy executor, world and register components/systems
-        let world = spawn_test_world(components, systems);
-
-        let spawn_call_data = array::ArrayTrait::new();
-        world.execute('spawn'.into(), spawn_call_data.span()); // Panics here: Deployed contract not found in registry
-
         let sensors = create_sensors();
-        let mut model_call_data = sensors.span().snapshot.clone();
-        model_call_data.append(nn_address.into());
-        world.execute('model'.into(), model_call_data.span());
-    //TODO: check result. 
+        let mut model_calldata = sensors.span().snapshot.clone();
+        model_calldata.append(nn_address.into());
+        world.execute('model'.into(), model_calldata.span());
+        
+        //TODO: check result. 
     }
 
     // Utils
@@ -103,9 +109,11 @@ mod tests {
         data.append(FixedTrait::new_unscaled(4, false));
         data.append(FixedTrait::new_unscaled(5, false));
         let extra = Option::<ExtraParams>::None(());
-        let tensor = TensorTrait::new(shape.span(), data.span(), extra);
+        let rays = TensorTrait::new(shape.span(), data.span(), extra);
+
+        let sensors: Sensors = Sensors { rays: rays };
         let mut serialized = ArrayTrait::new();
-        tensor.serialize(ref serialized);
+        sensors.serialize(ref serialized);
         serialized
     }
 }
