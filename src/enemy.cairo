@@ -238,8 +238,15 @@ mod move_enemies {
 
 #[cfg(test)]
 mod tests_move {
+    use array::{Array, ArrayTrait};
+    use traits::Into;
+
+    use dojo::test_utils::spawn_test_world;
+    use dojo::world::IWorldDispatcherTrait;
+
     use super::move_enemies::move;
-    use super::Position;
+    use super::{ENEMIES_NB, Position};
+    use debug::PrintTrait;
 
     #[test]
     #[available_gas(2000000)]
@@ -280,5 +287,95 @@ mod tests_move {
 
         assert(got_position.x == expected_x, 'Wrong position x');
         assert(got_position.y == expected_y, 'Wrong position y');
+    }
+
+    #[test]
+    #[available_gas(20000000000)]
+    fn test_move_through_execute() {
+        // Get required component.
+        let mut components = ArrayTrait::new();
+        components.append(drive_ai::vehicle::vehicle::TEST_CLASS_HASH);
+        // Get required system.
+        let mut systems = ArrayTrait::new();
+        systems.append(super::spawn_enemies::TEST_CLASS_HASH);
+        systems.append(super::move_enemies::TEST_CLASS_HASH);
+        // Get test world.
+        let world = spawn_test_world(components, systems);
+
+        let caller = starknet::contract_address_const::<0x0>();
+        // The execute method from the spawn system expects a Vehicle array 
+        // formatted as a felt252 array to spawn the enemies
+        let mut calldata: Array<felt252> = ArrayTrait::new();
+        // Model.
+        calldata.append(1);
+        world.execute('spawn_enemies'.into(), calldata.span());
+        world.execute('move_enemies'.into(), calldata.span());
+        world.execute('move_enemies'.into(), calldata.span());
+        let mut i: usize = 0;
+        let players: usize = ENEMIES_NB.into();
+        let mut expected_coordinates: Array<felt252> = ArrayTrait::new();
+        // 10 enemies on 400 width grid so each enemy has a 40 x range - the width 
+        // of the car it's a range of 8
+        // 16 <= x <= 24
+        expected_coordinates.append(23);
+        // spawn_y - 50 = 618 - 50
+        expected_coordinates.append(518);
+
+        // 54 <= x <= 62
+        expected_coordinates.append(58);
+        // spawn_y - 50 = 236 - 50
+        expected_coordinates.append(136);
+
+        // 96 <= x <= 104
+        expected_coordinates.append(103);
+        // spawn_y - 50 = 854 - 50
+        expected_coordinates.append(754);
+
+        // 136 <= x <= 144
+        expected_coordinates.append(138);
+        // spawn_y - 50 = 472 - 50
+        expected_coordinates.append(372);
+
+        // 176 <= x <= 184
+        expected_coordinates.append(183);
+        // spawn_y - 50 = 90 - 50
+        expected_coordinates.append(1022);
+
+        // 216 <= x <= 224
+        expected_coordinates.append(219);
+        // spawn_y - 50 = 708 - 50
+        expected_coordinates.append(608);
+
+        // 256 <= x <= 264
+        expected_coordinates.append(260);
+        // spawn_y - 50 = 326 - 50
+        expected_coordinates.append(226);
+
+        // 296 <= x <= 304
+        expected_coordinates.append(299);
+        // spawn_y - 50 = 944 - 50
+        expected_coordinates.append(844);
+
+        // 336 <= x <= 344
+        expected_coordinates.append(342);
+        // spawn_y - 50 = 562 - 50
+        expected_coordinates.append(462);
+
+        // 376 <= x <= 388
+        expected_coordinates.append(379);
+        // spawn_y - 50 = 180 - 50
+        expected_coordinates.append(80);
+        loop {
+            if i == players {
+                break ();
+            }
+            // We set the model to 1 earlier.
+            let position = world
+                .entity('Position'.into(), (1, i).into(), 0, dojo::SerdeLen::<Position>::len());
+
+            assert(*position[0] == *(@expected_coordinates)[2 * i], 'Wrong position x');
+            assert(*position[1] == *(@expected_coordinates)[2 * i + 1], 'Wrong position y');
+            i += 1;
+        }
     }
 }
