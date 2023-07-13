@@ -1,7 +1,7 @@
 use traits::Into;
 use cubit::types::vec2::{Vec2, Vec2Trait};
 use cubit::types::fixed::{Fixed, FixedTrait, ONE_u128};
-use cubit::math::{trig, comp::{min, max}};
+use cubit::math::{trig, comp::{min, max}, core::{pow_int, sqrt}};
 use starknet::ContractAddress;
 use drive_ai::{Vehicle, VehicleTrait, ENEMIES_NB, GRID_HEIGHT, GRID_WIDTH, CAR_HEIGHT, CAR_WIDTH};
 use drive_ai::math;
@@ -90,9 +90,9 @@ fn near_enemies(vehicle: Vehicle, enemies: Array<Vehicle>) -> Array<u8> {
         // // Option 2: Semi-circle - This may eliminate some enemies near corners of box in option 2,
         // // but may include (probably fewer) unneeded enemies at the sides where max distance reduces 
         // // to as low as CAR_WIDTH + RAY_LENGTH
-        // let delta_x_squared = core::pow_int(enemy.position.x - vehicle.position.x, 2, false);
-        // let delta_y_squared = core::pow_int(enemy.position.y - vehicle.position.y, 2, false);
-        // let distance = core::sqrt(delta_x_squared + delta_y_squared);
+        // let delta_x_squared = pow_int(enemy.position.x - vehicle.position.x, 2, false);
+        // let delta_y_squared = pow_int(enemy.position.y - vehicle.position.y, 2, false);
+        // let distance = sqrt(delta_x_squared + delta_y_squared);
         // if distance <= max_dist {
         //     near_enemies.append(enemy_idx);
         // }
@@ -114,7 +114,7 @@ fn near_wall(vehicle: Vehicle) -> felt252 {
 fn distances_to_enemy(vehicle: Vehicle, enemy: Vehicle) -> Array<Fixed> {
     let mut distances_to_obstacle = ArrayTrait::new();
 
-    let ray_length = FixedTrait::new_unscaled(RAY_LENGTH, false);
+    let ray_length = FixedTrait::new(RAY_LENGTH, false);
     let enemy_vertices = enemy.vertices();
 
     let mut rays = ArrayTrait::new();
