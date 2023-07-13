@@ -50,7 +50,7 @@ mod tests {
     const TEN: felt252 = 184467440737095516160;
     const TWENTY: felt252 = 368934881474191032320;
     const FORTY: felt252 = 737869762948382064640;
-    const DEG_NEG_30_IN_RADS: felt252 = -9658715196994321226;
+    const DEG_30_IN_RADS: felt252 = 9658715196994321226;
 
     #[test]
     #[available_gas(20000000)]
@@ -77,7 +77,7 @@ mod tests {
         let position = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TWENTY));
         let width = FixedTrait::from_felt(TEN);
         let height = FixedTrait::from_felt(TWENTY);
-        let theta = FixedTrait::from_felt(DEG_NEG_30_IN_RADS);
+        let theta = FixedTrait::from_felt(-1 * DEG_30_IN_RADS);
 
         vertices = vertices(position, width, height, theta);
 
