@@ -20,10 +20,9 @@ struct Position {
 mod spawn_enemies {
     use integer::{u256_safe_divmod, u256_as_non_zero};
     use traits::{Into, TryInto};
-    use array::{Array, ArrayTrait};
-    use cubit::types::vec2::{Vec2, Vec2Trait};
-    use cubit::types::FixedTrait;
+
     use dojo::world::Context;
+
     use drive_ai::Vehicle;
     use super::{Position, ENEMIES_NB, GRID_HEIGHT, GRID_WIDTH, CAR_WIDTH};
 
@@ -78,14 +77,13 @@ mod spawn_enemies {
 
 #[cfg(test)]
 mod tests_spawn {
-    use cubit::types::{FixedTrait, Vec2Trait};
-    use traits::Into;
-    use super::spawn_enemies::execute;
     use array::{Array, ArrayTrait};
-    use dojo::world::IWorldDispatcherTrait;
-    use super::{Position, ENEMIES_NB};
+    use traits::Into;
+
     use dojo::test_utils::spawn_test_world;
-    use dojo::serde::SerdeLen;
+    use dojo::world::IWorldDispatcherTrait;
+
+    use super::{Position, ENEMIES_NB};
 
     #[test]
     #[available_gas(20000000000)]
@@ -158,22 +156,20 @@ mod tests_spawn {
 
 #[system]
 mod move_enemies {
-    use traits::Into;
-    use cubit::types::{Fixed, FixedTrait};
-    use cubit::types::Vec2Trait;
+    use integer::{u256_safe_divmod, u256_as_non_zero};
+    use traits::{TryInto, Into};
 
     use dojo::world::Context;
 
-    use drive_ai::Vehicle;
-    use super::{Position, CAR_HEIGHT, CAR_VELOCITY, ENEMIES_NB, GRID_HEIGHT};
-
+    use super::{Position, CAR_HEIGHT, CAR_VELOCITY, ENEMIES_NB, GRID_HEIGHT, GRID_WIDTH, CAR_WIDTH};
 
     /// Executes a tick for the enemies.
     /// During a tick the enemies will need to be moved/respawned if they go out of the grid.
     ///
-    /// # Argument
+    /// # Arguments
     ///
     /// * `ctx` - Context of the game.
+    /// * `model` - The AI model id to namespace the games.
     fn execute(ctx: Context, model: felt252) {
         // Iterate through the enemies and move them. If the are out of the grid respawn them at 
         // the top of the grid
@@ -184,49 +180,64 @@ mod move_enemies {
             }
             let key = (model, i).into();
             let position = get !(ctx.world, key, Position);
-            let position = move(position, CAR_HEIGHT, CAR_VELOCITY);
+            let position = move(position, CAR_HEIGHT, CAR_VELOCITY, i.into());
             set !(ctx.world, key, (Position { x: position.x, y: position.y }));
             i += 1;
         }
     }
 
-    /// Vehicle
+    /// Enemy
     /// +---+ 
     /// |   | ^
     /// | x | | 2 * length
     /// |   | v
     /// +---+ 
-    ///
-    /// We respawn the enemy if the front of the car has disappeared from the grid
-    /// <=> 
-    /// center.y + length <= 0.
-    /// As we need to make this smooth for the ui we'll respawn the car at the top of the grid - distance
-    /// traveled during the tick.
+    /// <-->
+    /// 2 * width
+    /// We respawn the enemy if the front of the car has disappeared from the grid <=> center.y + length <= 0.
+    /// As we need to make this smooth for the ui we'll respawn the car at the top of the 
+    /// grid - distance traveled during the tick.
     /// Ex: If the center of the enemy is at the position init = (16, 25) and its speed is 50 points/tick
     /// We'll respawn the car at (16, TOP_GRID - (speed - init.y) + length).
+    /// We also change the x coordinate of the enemy otherwise the racer would just drive straight forward.
     ///
-    /// # Argument
+    /// # Arguments
     ///
-    /// * `enemy`- The enemy to move.
+    /// * `position`- The initial position of the enemy to move.
+    /// * `height` - The height of the enemy.
+    /// * `velocity` - The velocity of the enemy to move.
+    /// * `enemy_nb` - The enemy id that we want to move.
+    ///
+    /// # Returns
+    ///
+    /// * [`Position`] - The updated position of the enemy after being moved.
     #[inline(always)]
-    fn move(position: Position, height: u128, velocity: u128) -> Position {
-        let grid_height = GRID_HEIGHT;
+    fn move(position: Position, height: u128, velocity: u128, enemy_nb: u128) -> Position {
         let y = position.y;
         let x = position.x;
 
+        // Get the grid width as [`NonZero<felt252>`] for later div.
+        let grid_width: felt252 = GRID_WIDTH.into();
+        // GRID_WIDTH is a constant not set to 0 so it can't panic.
+        let grid_width: NonZero<felt252> = grid_width.try_into().unwrap();
+        // ENEMIES_NB is a constant not set to 0 so it can't panic.
+        let x_range: u128 = GRID_WIDTH.into() / ENEMIES_NB.into() - 2 * CAR_WIDTH.into();
+        let base_value = felt252_div(x.into(), grid_width);
+        let (_, x_rem) = u256_safe_divmod(base_value.into(), u256_as_non_zero(x_range.into()));
         let new_y = if y <= velocity + height {
-            grid_height - (velocity - y) + height
+            GRID_HEIGHT - (velocity - y) + height
         } else {
             y - velocity
         };
 
-        Position { x, y: new_y }
+        Position {
+            x: x_rem.low + CAR_WIDTH + (2 * CAR_WIDTH + x_range) * enemy_nb.into(), y: new_y
+        }
     }
 }
 
 #[cfg(test)]
 mod tests_move {
-    use cubit::types::{FixedTrait, Vec2Trait};
     use super::move_enemies::move;
     use super::Position;
 
@@ -236,16 +247,18 @@ mod tests_move {
         let x = 16;
         let y = 25;
         let height = 10;
-        let width = 1;
         let velocity = 50;
         let position = Position { x: x, y: y };
+
+        // We change the x coordinate otherwise the racer would have to drive straight forward to win.
+        let expected_x = 21;
+
         // Top of the grid - (velocity - remaining bottom grid) + enemy height
         // 1000 - (50 - 25) + 10 = 985
-        let expect_y = 985;
-
-        let got_position = move(position, height, velocity);
-        assert(got_position.x == x, 'Wrong position x');
-        assert(got_position.y == expect_y, 'Wrong position y');
+        let expected_y = 985;
+        let got_position = move(position, height, velocity, 0);
+        assert(got_position.x == expected_x, 'Wrong position x');
+        assert(got_position.y == expected_y, 'Wrong position y');
     }
 
     #[test]
@@ -254,16 +267,18 @@ mod tests_move {
         let x = 16;
         let y = 980;
         let height = 10;
-        let width = 1;
         let velocity = 50;
         let position = Position { x: x, y: y };
+
+        // We change the x coordinate otherwise the racer would have to drive straight forward to win.
+        let expected_x = 61;
         // y - speed
         // 980 - 50 = 930
-        let expect_y = 930;
-        let expect_position = Position { x, y: expect_y };
-        let got_position = move(position, height, velocity);
+        let expected_y = 930;
 
-        assert(got_position.x == expect_position.x, 'Wrong position x');
-        assert(got_position.y == expect_position.y, 'Wrong position y');
+        let got_position = move(position, height, velocity, 1);
+
+        assert(got_position.x == expected_x, 'Wrong position x');
+        assert(got_position.y == expected_y, 'Wrong position y');
     }
 }
