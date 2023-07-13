@@ -36,7 +36,6 @@ fn vertices(position: Vec2, width: Fixed, height: Fixed, theta: Fixed) -> Span<V
     vertices.span()
 }
 
-
 #[cfg(test)]
 mod tests {
     use debug::PrintTrait;

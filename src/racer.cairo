@@ -22,11 +22,11 @@ const NUM_RAYS: u128 = 9; // must be ODD integer
 const RAYS_TOTAL_ANGLE_DEG: u128 = 140;
 const RAY_LENGTH: u128 = 150;
 
-const DEG_90_IN_RADS: felt252 = 28976077338029890953;
-const DEG_70_IN_RADS: felt252 = 22536387234850959209;
-const DEG_50_IN_RADS: felt252 = 16098473553126325695;
-const DEG_30_IN_RADS: felt252 = 9658715196994321226;
-const DEG_10_IN_RADS: felt252 = 3218956840862316756;
+const DEG_90_IN_RADS: u128 = 28976077338029890953;
+const DEG_70_IN_RADS: u128 = 22536387234850959209;
+const DEG_50_IN_RADS: u128 = 16098473553126325695;
+const DEG_30_IN_RADS: u128 = 9658715196994321226;
+const DEG_10_IN_RADS: u128 = 3218956840862316756;
 
 fn distances_to_enemy(vehicle: Vehicle, enemy: Vehicle) -> Array<Fixed> {
     // Empties then fills Sensors mutable array self.distances_to_obstacle for particular Enemy
@@ -36,15 +36,15 @@ fn distances_to_enemy(vehicle: Vehicle, enemy: Vehicle) -> Array<Fixed> {
     let enemy_vertices = enemy.vertices();
 
     let mut rays = ArrayTrait::new();
-    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_70_IN_RADS));
-    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_50_IN_RADS));
-    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_30_IN_RADS));
-    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_10_IN_RADS));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_70_IN_RADS, true));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_50_IN_RADS, true));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_30_IN_RADS, true));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_10_IN_RADS, true));
     rays.append(vehicle.steer);
-    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_10_IN_RADS));
-    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_30_IN_RADS));
-    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_50_IN_RADS));
-    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_70_IN_RADS));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_10_IN_RADS, false));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_30_IN_RADS, false));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_50_IN_RADS, false));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_70_IN_RADS, false));
 
     loop {
         match rays.pop_front() {
@@ -196,8 +196,6 @@ mod spawn_racer {
                     driver: ctx.origin, model
                     }, Vehicle {
                     position,
-                    length: FixedTrait::new_unscaled(32_u128, false),
-                    width: FixedTrait::new_unscaled(16_u128, false),
                     steer: FixedTrait::new_unscaled(0_u128, false),
                     speed: FixedTrait::new_unscaled(50_u128, false),
                 }

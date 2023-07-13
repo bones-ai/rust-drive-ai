@@ -4,13 +4,14 @@ use cubit::types::fixed::{Fixed, FixedTrait, FixedPrint, ONE_u128};
 use cubit::math::trig;
 use drive_ai::math;
 
+// // Vehicle dimensions, stored in half-lengths
+const WIDTH: u128 = 184467440737095516160;
+const HEIGHT: u128 = 184467440737095516160;
+
 #[derive(Component, Serde, Drop, Copy)]
 struct Vehicle {
     // Current vehicle position
     position: Vec2,
-    // Vehicle dimensions, stored in half-lengths
-    length: Fixed,
-    width: Fixed,
     // Vehicle steer in radians -1/2π <= s <= 1/2π
     steer: Fixed,
     // Vehicle velocity 0 <= v <= 100
@@ -20,7 +21,7 @@ struct Vehicle {
 impl VehicleSerdeLen of dojo::SerdeLen<Vehicle> {
     #[inline(always)]
     fn len() -> usize {
-        12
+        8
     }
 }
 
@@ -70,7 +71,12 @@ impl VehicleImpl of VehicleTrait {
     }
 
     fn vertices(self: @Vehicle) -> Span<Vec2> {
-        math::vertices(*self.position, *self.width, *self.length, *self.steer)
+        math::vertices(
+            *self.position,
+            FixedTrait::new(WIDTH, false),
+            FixedTrait::new(HEIGHT, false),
+            *self.steer
+        )
     }
 }
 
@@ -91,8 +97,6 @@ mod tests {
     fn test_control() {
         let mut vehicle = Vehicle {
             position: Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TEN)),
-            width: FixedTrait::from_felt(TEN),
-            length: FixedTrait::from_felt(TEN),
             steer: FixedTrait::new(0_u128, false),
             speed: FixedTrait::from_felt(TEN)
         };
@@ -112,8 +116,6 @@ mod tests {
     fn test_drive() {
         let mut vehicle = Vehicle {
             position: Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TEN)),
-            width: FixedTrait::from_felt(TEN),
-            length: FixedTrait::from_felt(TEN),
             steer: FixedTrait::new(0_u128, false),
             speed: FixedTrait::from_felt(TEN)
         };
