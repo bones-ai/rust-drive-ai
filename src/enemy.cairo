@@ -19,36 +19,58 @@ struct Position {
 #[system]
 mod spawn_enemies {
     use integer::{u256_safe_divmod, u256_as_non_zero};
-    use traits::Into;
+    use traits::{Into, TryInto};
     use array::{Array, ArrayTrait};
     use cubit::types::vec2::{Vec2, Vec2Trait};
     use cubit::types::FixedTrait;
     use dojo::world::Context;
     use drive_ai::Vehicle;
-    use super::{Position, ENEMIES_NB, GRID_HEIGHT, GRID_WIDTH};
+    use super::{Position, ENEMIES_NB, GRID_HEIGHT, GRID_WIDTH, CAR_WIDTH};
 
-    /// Spawn the enemies provided in the array.
-    /// /!\ Panics if the number of enemies provided in the array don't match the expected number
-    /// of enemies defined in the [`super::ENEMIES_NB`] constant.
-    /// There's no sanity check on any of the properties of the enemies so it's possible to spawn
-    /// enemies with really high speed, on top of each other or too big for the grid.
+    /// Spawn [`ENEMIES_NB`] enemies. Each enemy has its own x range that corresponds to: 
+    /// [`GRID_WIDTH`] * car_nb / [`ENEMIES_NB`] to [`GRID_WIDTH`] * (car_nb + 1) / [`ENEMIES_NB`]
+    /// So they don't spawn on top of each other.
+    /// The initial Y position is determined by model * car_nb / [GRID_HEIGHT] % GRID_HEIGHT 
+    /// This division is a felt division so that cars don't spawn in diagonal and are well spread out
     ///
     /// # Arguments
     ///
     /// * `ctx` - Context of the game.
-    /// * `enemies` - Array of enemies. It is assumed that all the enemies in this array are valid.
+    /// * `model` - The AI model id to namespace the games.
     fn execute(ctx: Context, model: felt252) {
         let mut i: usize = 0;
+        // Get the grid height as [`NonZero<felt252>`] for later div.
+        let grid_height: felt252 = GRID_HEIGHT.into();
+        // GRID_HEIGHT is a constant not set to 0 so it can't panic.
+        let grid_height: NonZero<felt252> = grid_height.try_into().unwrap();
+        // Get the grid height as [`NonZero<u256>`] for later div.
+        // GRID_HEIGHT is a constant not set to 0 so it can't panic.
+        let big_grid_height: NonZero<u256> = u256 {
+            low: GRID_HEIGHT.into(), high: 0_u128
+        }.try_into().unwrap();
+
+        // ENEMIES_NB is a constant not set to 0 so it can't panic.
+        let x_range: u128 = GRID_WIDTH.into() / ENEMIES_NB.into() - 2 * CAR_WIDTH.into();
+
         loop {
             if i == ENEMIES_NB.into() {
                 break ();
             }
-
-            let numerator: u256 = model.into() * i.into();
-            let (_, x_rem) = u256_safe_divmod(numerator, u256_as_non_zero(GRID_WIDTH.into()));
-            let (_, y_rem) = u256_safe_divmod(numerator, u256_as_non_zero(GRID_HEIGHT.into()));
-
-            set !(ctx.world, (model, i).into(), (Position { x: x_rem.low, y: y_rem.low }));
+            let numerator: felt252 = model.into() + i.into();
+            // This value gives us a """random""" value to better spread the enemies on the grid at init.
+            let base_value = felt252_div(numerator, grid_height);
+            // Resize the value so it fits in the x range given for enemies so they don't overlap.
+            let (_, x_rem) = u256_safe_divmod(base_value.into(), u256_as_non_zero(x_range.into()));
+            // Resize the value so it fits in the grid height.
+            let (_, y_rem) = u256_safe_divmod(base_value.into(), big_grid_height);
+            // Spawn the enemy.
+            set !(
+                ctx.world,
+                (model, i).into(),
+                (Position {
+                    x: x_rem.low + CAR_WIDTH + (2 * CAR_WIDTH + x_range) * i.into(), y: y_rem.low
+                })
+            );
             i += 1;
         }
     }
@@ -63,6 +85,7 @@ mod tests_spawn {
     use dojo::world::IWorldDispatcherTrait;
     use super::{Position, ENEMIES_NB};
     use dojo::test_utils::spawn_test_world;
+    use dojo::serde::SerdeLen;
 
     #[test]
     #[available_gas(20000000000)]
@@ -85,6 +108,40 @@ mod tests_spawn {
         world.execute('spawn_enemies'.into(), calldata.span());
         let mut i: usize = 0;
         let players: usize = ENEMIES_NB.into();
+        let mut expected_coordinates: Array<felt252> = ArrayTrait::new();
+        // 10 enemies on 400 width grid so each enemy has a 40 x range - the width 
+        // of the car it's a range of 8
+        // 16 <= x <= 24
+        expected_coordinates.append(18);
+        expected_coordinates.append(618);
+        // 54 <= x <= 62
+        expected_coordinates.append(60);
+        expected_coordinates.append(236);
+        // 96 <= x <= 104
+        expected_coordinates.append(102);
+        expected_coordinates.append(854);
+        // 136 <= x <= 144
+        expected_coordinates.append(136);
+        expected_coordinates.append(472);
+        // 176 <= x <= 184
+        expected_coordinates.append(178);
+        expected_coordinates.append(90);
+        // 216 <= x <= 224
+        expected_coordinates.append(220);
+        expected_coordinates.append(708);
+        // 256 <= x <= 264
+        expected_coordinates.append(262);
+        expected_coordinates.append(326);
+        // 296 <= x <= 204
+        expected_coordinates.append(296);
+        expected_coordinates.append(944);
+        // 336 <= x <= 344
+        expected_coordinates.append(338);
+        expected_coordinates.append(562);
+        // 376 <= x <= 388
+        expected_coordinates.append(380);
+        expected_coordinates.append(180);
+
         loop {
             if i == players {
                 break ();
@@ -92,10 +149,8 @@ mod tests_spawn {
             // We set the model to 1 earlier.
             let position = world
                 .entity('Position'.into(), (1, i).into(), 0, dojo::SerdeLen::<Position>::len());
-
-            assert(*position[0] == i.into(), 'Wrong position x');
-            assert(*position[1] == i.into(), 'Wrong position y');
-
+            assert(*position[0] == *(@expected_coordinates)[2 * i], 'Wrong position x');
+            assert(*position[1] == *(@expected_coordinates)[2 * i + 1], 'Wrong position y');
             i += 1;
         }
     }
