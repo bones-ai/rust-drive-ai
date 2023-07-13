@@ -53,10 +53,10 @@ fn distances_to_enemy(vehicle: Vehicle, enemy: Vehicle) -> Array<Fixed> {
                 let p1 = vehicle.position;
                 let cos_ray = trig::cos(ray);
                 let sin_ray = trig::sin(ray);
-                let delta1 = Vec2Trait::new(ray_length * cos_ray, ray_length * sin_ray);
+                let delta1 = Vec2Trait::new(ray_length * sin_ray, ray_length * cos_ray);
                 let q1 = p1 + delta1;
 
-                // Counter for inner loop: check each edge of Enemy for intersection this sensor's ray
+                // Counter for inner loop: check each edge of Enemy for intersection with this ray
                 let mut edge: usize = 0;
 
                 loop {
@@ -152,7 +152,6 @@ fn orientation(a: Vec2, b: Vec2, c: Vec2) -> u8 {
     return 1;
 }
 
-// TODO finish
 // Finds distance from p1 to intersection of segments p1q1 and p2q2
 fn distance_to_intersection(
     p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2, cos_ray: Fixed, sin_ray: Fixed
@@ -234,5 +233,147 @@ mod drive {
     // let controls = execute!(ctx.world, car.model, Sensors.serialize());
     // 3. Update car state
     // 4. Run collision detection
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use debug::PrintTrait;
+    use cubit::types::vec2::{Vec2, Vec2Trait};
+    use cubit::types::fixed::{Fixed, FixedTrait, FixedPrint, ONE_u128};
+    use cubit::math::trig;
+    use cubit::test::helpers::assert_precise;
+    use array::SpanTrait;
+    use drive_ai::{Vehicle, VehicleTrait};
+
+    use super::{Sensors, does_intersect, orientation, distance_to_intersection};
+
+    const RAY_LENGTH: u128 = 150;
+
+    const TEN: felt252 = 184467440737095516160;
+    const TWENTY: felt252 = 368934881474191032320;
+    const TWENTY_FIVE: felt252 = 461168601842738790400;
+    const THIRTY: felt252 = 553402322211286548480;
+    const FORTY: felt252 = 737869762948382064640;
+    const FIFTY: felt252 = 922337203685477580800;
+    const SIXTY: felt252 = 1106804644422573096960;
+    const EIGHTY: felt252 = 1475739525896764129280;
+    const HUNDRED: felt252 = 1844674407370955161600;
+
+    const DEG_30_IN_RADS: felt252 = 9658715196994321226;
+    const DEG_90_IN_RADS: felt252 = 28976077338029890953;
+
+    // TODO
+    #[test]
+    #[available_gas(20000000)]
+    fn test_distances_to_enemy() {}
+
+    // TODO
+    #[test]
+    #[available_gas(20000000)]
+    fn test_distances_to_wall() {}
+
+    // TODO
+    #[test]
+    #[available_gas(20000000)]
+    fn test_collision_enemy_check() {}
+
+    // TODO
+    #[test]
+    #[available_gas(20000000)]
+    fn test_collision_wall_check() {}
+
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_does_intersect() {
+        let mut p1 = Vec2Trait::new(FixedTrait::from_felt(0), FixedTrait::from_felt(TEN));
+        let mut q1 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(THIRTY));
+        let mut p2 = Vec2Trait::new(FixedTrait::from_felt(THIRTY), FixedTrait::from_felt(0));
+        let mut q2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(FORTY));
+        let intersect = does_intersect(p1, q1, p2, q2);
+        assert(intersect == true, 'invalid intersection');
+
+        q2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TEN));
+        let intersect = does_intersect(p1, q1, p2, q2);
+        assert(intersect == false, 'invalid non-intersection');
+
+        q1 = Vec2Trait::new(FixedTrait::from_felt(THIRTY), FixedTrait::from_felt(TEN));
+        p2 = Vec2Trait::new(FixedTrait::from_felt(TWENTY), FixedTrait::from_felt(TEN));
+        q2 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(TEN));
+        let intersect = does_intersect(p1, q1, p2, q2);
+        assert(intersect == true, 'invalid colinear intersection');
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_orientation() {
+        let a = Vec2Trait::new(FixedTrait::from_felt(0), FixedTrait::from_felt(TEN));
+        let b = Vec2Trait::new(FixedTrait::from_felt(TWENTY), FixedTrait::from_felt(TWENTY));
+        let mut c = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(FORTY));
+        let mut orientation = orientation(a, b, c);
+        assert(orientation == 2_u8, 'invalid positive orientation');
+
+        c = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(THIRTY));
+        orientation = orientation(a, b, c);
+        assert(orientation == 1_u8, 'invalid zero orientation');
+
+        c = Vec2Trait::new(FixedTrait::from_felt(THIRTY), FixedTrait::zero());
+        orientation = orientation(a, b, c);
+        assert(orientation == 0_u8, 'invalid negative orientation');
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_distance_to_intersection() {
+        let p1 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TWENTY));
+
+        let ray_length = FixedTrait::from_felt(FORTY);
+        let mut ray = FixedTrait::from_felt(-1 * DEG_30_IN_RADS);
+        let mut cos_ray = trig::cos_fast(ray);
+        let mut sin_ray = trig::sin_fast(ray);
+        let mut delta1 = Vec2Trait::new(ray_length * sin_ray, ray_length * cos_ray);
+        let mut q1 = p1 + delta1;
+        let mut p2 = Vec2Trait::new(FixedTrait::from_felt(TWENTY), FixedTrait::from_felt(FIFTY));
+        let mut q2 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(FIFTY));
+        let mut distance = distance_to_intersection(p1, q1, p2, q2, cos_ray, sin_ray);
+        // ~34.6410161513775
+        assert_precise(
+            distance, 639017084058308293480, 'invalid distance horiz edge', Option::None(())
+        );
+
+        p2 = Vec2Trait::new(FixedTrait::from_felt(TWENTY_FIVE), FixedTrait::from_felt(FORTY));
+        q2 = Vec2Trait::new(FixedTrait::from_felt(TWENTY_FIVE), FixedTrait::from_felt(SIXTY));
+        distance = distance_to_intersection(p1, q1, p2, q2, cos_ray, sin_ray);
+        // ~23.0940107675850
+        assert_precise(
+            distance, 553403467064578077655, 'invalid distance vert edge', Option::None(())
+        );
+
+        ray = FixedTrait::from_felt(DEG_90_IN_RADS);
+        cos_ray = trig::cos_fast(ray);
+        sin_ray = trig::sin_fast(ray);
+        delta1 = Vec2Trait::new(ray_length * sin_ray, ray_length * cos_ray);
+        q1 = p1 + delta1;
+        p2 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(TWENTY));
+        q2 = Vec2Trait::new(FixedTrait::from_felt(SIXTY), FixedTrait::from_felt(TWENTY));
+        distance = distance_to_intersection(p1, q1, p2, q2, cos_ray, sin_ray);
+        // ~30.0
+        assert_precise(
+            distance, 553402322211287000000, 'invalid dist colin-horiz edge', Option::None(())
+        );
+
+        ray = FixedTrait::from_felt(0);
+        cos_ray = trig::cos_fast(ray);
+        sin_ray = trig::sin_fast(ray);
+        delta1 = Vec2Trait::new(ray_length * sin_ray, ray_length * cos_ray);
+        q1 = p1 + delta1;
+        p2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(FIFTY));
+        q2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(EIGHTY));
+        distance = distance_to_intersection(p1, q1, p2, q2, cos_ray, sin_ray);
+        // ~30.0
+        assert_precise(
+            distance, 553402322211287000000, 'invalid dist colin vert edge', Option::None(())
+        );
     }
 }
