@@ -8,9 +8,8 @@ sierra-replace-ids = true
 
 [dependencies]
 dojo = { git = "https://github.com/dojoengine/dojo" }
-cubit = {git = "https://github.com/tarrencev/cubit" }
-# TODO: remove `branch` key when "prepare-release" is merged on Orion's `main` branch.
-orion = { git = "https://github.com/gizatechxyz/orion"}
+cubit = { git = "https://github.com/tarrencev/cubit" }
+orion = { git = "https://github.com/gizatechxyz/orion" }
 
 [[target.dojo]]
 

@@ -18,7 +18,7 @@ struct Racer {
 
 #[derive(Serde, Drop)]
 struct Sensors {
-    distances_to_obstacle: Array<Fixed>, 
+    rays: Tensor<FixedType>,
 }
 
 const NUM_RAYS: u128 = 9; // must be ODD integer
