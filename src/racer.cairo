@@ -1,6 +1,6 @@
 use cubit::types::vec2::{Vec2, Vec2Trait};
 use cubit::types::fixed::{Fixed, FixedTrait, ONE_u128};
-use cubit::math::{trig, comp};
+use cubit::math::{trig, comp::{min, max}};
 use starknet::ContractAddress;
 use drive_ai::{Vehicle, VehicleTrait};
 use array::{ArrayTrait, SpanTrait};
@@ -46,19 +46,22 @@ fn distances_to_enemy(vehicle: Vehicle, enemy: Vehicle) -> Array<Fixed> {
     rays.append(vehicle.steer - FixedTrait::new(DEG_50_IN_RADS, false));
     rays.append(vehicle.steer - FixedTrait::new(DEG_70_IN_RADS, false));
 
+    let p1 = vehicle.position;
+
     loop {
         match rays.pop_front() {
             Option::Some(ray) => {
                 // Endpoints of Ray
-                let p1 = vehicle.position;
-                let cos_ray = trig::cos(ray);
-                let sin_ray = trig::sin(ray);
+                // TODO: Rays are semetric, we calculate half and invert
+                let cos_ray = trig::cos_fast(ray);
+                let sin_ray = trig::sin_fast(ray);
                 let delta1 = Vec2Trait::new(ray_length * sin_ray, ray_length * cos_ray);
                 let q1 = p1 + delta1;
 
                 // Counter for inner loop: check each edge of Enemy for intersection with this ray
                 let mut edge: usize = 0;
 
+                // TODO: Only check two visible edges
                 loop {
                     if edge >= 3 {
                         break ();
@@ -77,6 +80,9 @@ fn distances_to_enemy(vehicle: Vehicle, enemy: Vehicle) -> Array<Fixed> {
                     if does_intersect(p1, q1, *p2, *q2) {
                         distances_to_obstacle
                             .append(distance_to_intersection(p1, q1, *p2, *q2, cos_ray, sin_ray));
+
+                        // Break early if we detect an intersection, since there can be only one.
+                        break ();
                     } else {
                         distances_to_obstacle.append(FixedTrait::new(0, false));
                     }
@@ -104,35 +110,25 @@ fn collision_wall_check() {}
 
 // Cool algorithm - see pp. 4-10 at https://www.dcs.gla.ac.uk/~pat/52233/slides/Geometry1x1.pdf
 // Determines if segments p1q1 and p2q2 intersect 
-// Benchmark ~10k steps
 fn does_intersect(p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2) -> bool {
     let orientation_a = orientation(p1, q1, p2);
     let orientation_b = orientation(p1, q1, q2);
-    let orientation_c = orientation(p2, q2, p1);
-    let orientation_d = orientation(p2, q2, q1);
 
-    // Either proof 1 or 2 proves intersection
-    // Proof 1: two conditions must be met
-    if orientation_a != orientation_b && orientation_c != orientation_d {
-        return true;
+    // Early exit if two conditions for Proof 1 are met
+    if orientation_a != orientation_b {
+        return orientation(p2, q2, p1) != orientation(p2, q2, q1);
+    }
+
+    // Early exit if conditions for Proof 2 are not met
+    if orientation_a != 1 || orientation_b != 1 {
+        return false;
     }
 
     // Proof 2: three conditions must be met
     // All points are colinear, i.e. all orientations = 0
-    (orientation_a == 1
-        && orientation_b == 1
-        && orientation_c == 1
-        && orientation_d == 1
-        && // x-projections overlap
-        ((p2.x >= p1.x && p2.x <= q1.x)
-            || (p2.x <= p1.x && p2.x >= q1.x)
-            || (q2.x >= p1.x && q2.x <= q1.x)
-            || (q2.x <= p1.x && q2.x >= q1.x))
-        && // y-projections overlap
-        ((p2.y >= p1.y && p2.y <= q1.y)
-            || (p2.y <= p1.y && p2.y >= q1.y)
-            || (q2.y >= p1.y && q2.y <= q1.y)
-            || (q2.y <= p1.y && q2.y >= q1.y)))
+    // x-projections overlap
+    // Checking if x-projections and y-projections overlap
+    (max(p1.x, p2.x) <= min(q1.x, q2.x)) && (max(p1.y, p2.y) <= min(q1.y, q2.y))
 }
 
 // Orientation = sign of cross product of vectors (b - a) and (c - b)
@@ -141,6 +137,7 @@ fn orientation(a: Vec2, b: Vec2, c: Vec2) -> u8 {
     let ab = b - a;
     let bc = c - b;
     let cross_product = ab.cross(bc);
+
     if cross_product.mag > 0 {
         if !cross_product.sign {
             return 2;
@@ -159,13 +156,13 @@ fn distance_to_intersection(
     // All enemy edges are either vertical or horizontal
     if p2.y == q2.y { // Enemy edge is horizontal
         if p2.y == p1.y { // Ray is colinear with enemy edge
-            return comp::min((p2.x - p1.x).abs(), (q2.x - p1.x).abs());
+            return min((p2.x - p1.x).abs(), (q2.x - p1.x).abs());
         } else {
             return ((p2.y - p1.y) / cos_ray).abs();
         }
     } else { // Enemy edge is vertical
         if p2.x == p1.x { // Ray is colinear with enemy edge
-            return comp::min((p2.y - p1.y).abs(), (q2.y - p1.y).abs());
+            return min((p2.y - p1.y).abs(), (q2.y - p1.y).abs());
         } else {
             return ((p2.x - p1.x) / sin_ray).abs();
         }
