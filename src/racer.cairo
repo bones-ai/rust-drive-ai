@@ -40,9 +40,7 @@ const NUM_RAYS: u128 = 9; // must be ODD integer
 const RAYS_TOTAL_ANGLE_DEG: u128 = 140;
 const RAY_LENGTH: u128 = 150;
 
-fn calculate_sensors(
-    vehicle: Vehicle, mut enemies: Array<Position>
-) -> Tensor<orion_fp::FixedType> {
+fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
     let ray_segments = RaysTrait::new(vehicle.position, vehicle.steer).segments;
 
     // TODO: SCALE
@@ -89,7 +87,7 @@ fn calculate_sensors(
     sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
     sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
     let extra = Option::<ExtraParams>::None(());
-    TensorTrait::new(shape.span(), sensors.span(), extra)
+    Sensors { rays: TensorTrait::new(shape.span(), sensors.span(), extra) }
 }
 
 fn filter_positions(vehicle: Vehicle, mut positions: Array<Position>) -> Array<Position> {
@@ -278,23 +276,52 @@ mod spawn_racer {
 mod drive {
     use array::ArrayTrait;
     use traits::Into;
+    use serde::Serde;
     use dojo::world::Context;
-    use drive_ai::Vehicle;
-
-    use super::Racer;
+    use drive_ai::vehicle::{Controls, Vehicle, VehicleTrait};
+    use drive_ai::enemy::{Position, ENEMIES_NB};
+    use super::{Racer, Sensors, compute_sensors};
 
     fn execute(ctx: Context, model: felt252) {
-        let (racer, vehicle) = get !(ctx.world, model.into(), (Racer, Vehicle));
-        // let sensors = distances_to_enemy(vehicle, vehicle);
+        let mut vehicle = get !(ctx.world, model.into(), Vehicle);
 
+        let mut enemies = ArrayTrait::<Position>::new();
+        let mut i: u8 = 0;
+        loop {
+            if i == ENEMIES_NB {
+                break ();
+            }
+            let key = (model, i).into();
+            let position = get !(ctx.world, key, Position);
+            enemies.append(position);
+            i += 1;
+        }
+
+        // 1. Compute sensors, reverts if there is a collision (game over)
+        let sensors = compute_sensors(vehicle, enemies);
+
+        // 2. Run model forward pass
+        let mut sensor_calldata = ArrayTrait::new();
+        sensors.serialize(ref sensor_calldata);
+        let mut controls = ctx.world.execute(model, sensor_calldata.span());
+        let controls = serde::Serde::<Controls>::deserialize(ref controls).unwrap();
+
+        // 3. Update car position
+        vehicle.control(controls);
+        vehicle.drive();
+
+        set !(
+            ctx.world,
+            model.into(),
+            (Vehicle { position: vehicle.position, steer: vehicle.steer, speed: vehicle.speed })
+        );
+
+        // 4. Move enemeies to updated positions
+        // TODO: This retrieves enemies again internally, we should
+        // only read them once (pass them in here?)
         let mut calldata = ArrayTrait::new();
         calldata.append(model);
         ctx.world.execute('move_enemies', calldata.span());
-    // 1. Compute sensors
-    // 2. Run model forward pass
-    // let controls = execute!(ctx.world, car.model, Sensors.serialize());
-    // 3. Update car state
-    // 4. Run collision detection
     }
 }
 

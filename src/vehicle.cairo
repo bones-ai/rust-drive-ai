@@ -38,8 +38,8 @@ struct Controls {
 }
 
 // 10 degrees / pi/18 radians
-const TURN_STEP: felt252 = 3219563738742341801;
-const HALF_PI: felt252 = 28976077338029890953;
+const TURN_STEP: u128 = 3219563738742341801;
+const HALF_PI: u128 = 28976077338029890953;
 
 trait VehicleTrait {
     fn control(ref self: Vehicle, controls: Controls) -> bool;
@@ -50,15 +50,15 @@ trait VehicleTrait {
 impl VehicleImpl of VehicleTrait {
     fn control(ref self: Vehicle, controls: Controls) -> bool {
         let delta = match controls.steer {
-            Direction::Straight(()) => FixedTrait::from_felt(0),
-            Direction::Left(()) => FixedTrait::from_felt(-1 * TURN_STEP),
-            Direction::Right(()) => FixedTrait::from_felt(TURN_STEP),
+            Direction::Straight(()) => FixedTrait::new(0, false),
+            Direction::Left(()) => FixedTrait::new(TURN_STEP, true),
+            Direction::Right(()) => FixedTrait::new(TURN_STEP, false),
         };
 
         self.steer = self.steer + delta;
 
-        (self.steer >= FixedTrait::from_felt(-1 * HALF_PI)
-            && self.steer <= FixedTrait::from_felt(HALF_PI))
+        (self.steer >= FixedTrait::new(HALF_PI, true)
+            && self.steer <= FixedTrait::new(HALF_PI, false))
     }
 
     fn drive(ref self: Vehicle) {
@@ -102,13 +102,13 @@ mod tests {
         };
 
         vehicle.control(Controls { steer: Direction::Left(()) });
-        assert(vehicle.steer == FixedTrait::from_felt(-1 * TURN_STEP), 'invalid steer');
+        assert(vehicle.steer == FixedTrait::new(TURN_STEP, true), 'invalid steer');
         vehicle.control(Controls { steer: Direction::Left(()) });
-        assert(vehicle.steer == FixedTrait::from_felt(-2 * TURN_STEP), 'invalid steer');
+        assert(vehicle.steer == FixedTrait::new(2 * TURN_STEP, true), 'invalid steer');
         vehicle.control(Controls { steer: Direction::Right(()) });
-        assert(vehicle.steer == FixedTrait::from_felt(-1 * TURN_STEP), 'invalid steer');
+        assert(vehicle.steer == FixedTrait::new(TURN_STEP, true), 'invalid steer');
         vehicle.control(Controls { steer: Direction::Right(()) });
-        assert(vehicle.steer == FixedTrait::from_felt(0), 'invalid steer');
+        assert(vehicle.steer == FixedTrait::new(0, false), 'invalid steer');
     }
 
     #[test]
