@@ -9,7 +9,8 @@ sierra-replace-ids = true
 [dependencies]
 dojo = { git = "https://github.com/dojoengine/dojo" }
 cubit = { git = "https://github.com/tarrencev/cubit" }
-orion = { git = "https://github.com/gizatechxyz/orion" }
+#TODO: remove branch key when `fix-fp` branch will be merged.
+orion = { git = "https://github.com/gizatechxyz/orion", branch = "fix-fp" }
 
 [[target.dojo]]
 

@@ -1,10 +1,6 @@
-use orion::operators::tensor::core::Tensor;
-use orion::numbers::fixed_point::core::FixedType;
-
 #[system]
 mod model {
     use array::ArrayTrait;
-    use starknet::ContractAddress;
     use dojo::world::Context;
     use drive_ai::racer::Sensors;
     use drive_ai::vehicle::{Controls, Direction};
@@ -113,11 +109,8 @@ mod tests {
     use core::result::ResultTrait;
     use core::serde::Serde;
     use clone::Clone;
-    use array::ArrayTrait;
-    use traits::{TryInto, Into};
-    use option::OptionTrait;
-    use starknet::syscalls::deploy_syscall;
-    use starknet::{ContractAddress, Felt252TryIntoContractAddress, ContractAddressIntoFelt252};
+    use array::{ArrayTrait, SpanTrait};
+    use traits::Into;
 
     use drive_ai::racer::Sensors;
 
@@ -125,11 +118,10 @@ mod tests {
     use dojo::test_utils::spawn_test_world;
 
     use orion::operators::tensor::implementations::impl_tensor_fp::Tensor_fp;
-    use orion::operators::tensor::core::{TensorTrait, ExtraParams};
-    use orion::numbers::fixed_point::core::FixedTrait;
+    use orion::operators::tensor::core::{Tensor, TensorTrait, ExtraParams};
+    use orion::numbers::fixed_point::core::{FixedType, FixedTrait};
     use orion::numbers::fixed_point::implementations::impl_16x16::FP16x16Impl;
 
-    use super::{model, Tensor, FixedType};
 
 
     #[test]
@@ -139,15 +131,16 @@ mod tests {
 
         // Get required component.
         let mut components = array::ArrayTrait::new();
-        // components.append(drive_ai::vehicle::vehicle::TEST_CLASS_HASH);
         // Get required system.
         let mut systems = array::ArrayTrait::new();
-        systems.append(model::TEST_CLASS_HASH);
+        systems.append(super::model::TEST_CLASS_HASH);
         // Get test world.
         let world = spawn_test_world(components, systems);
         let sensors = create_sensors();
-        world.execute('model'.into(), sensors.span());
-    //TODO: check result. 
+        let control = world.execute('model'.into(), sensors.span());
+
+        //Expect prediction == 2 -> Rigth:
+        assert(*control[0] == 2, 'invalid prediction')
     }
 
     // Utils
