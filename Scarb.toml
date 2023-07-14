@@ -8,8 +8,8 @@ sierra-replace-ids = true
 
 [dependencies]
 dojo = { git = "https://github.com/dojoengine/dojo" }
-cubit = {git = "https://github.com/tarrencev/cubit" }
-orion = { git = "https://github.com/gizatechxyz/orion"}
+cubit = { git = "https://github.com/tarrencev/cubit" }
+orion = { git = "https://github.com/gizatechxyz/orion" }
 
 [[target.dojo]]
 
