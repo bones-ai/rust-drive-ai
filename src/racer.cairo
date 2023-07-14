@@ -250,21 +250,28 @@ fn does_intersect(p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2) -> bool {
     let orientation_a = orientation(p1, q1, p2);
     let orientation_b = orientation(p1, q1, q2);
 
-    // Early exit if two conditions for Proof 1 are met
+    // Either proof 1 or 2 proves intersection
+    // Proof 1: two conditions must be met
     if orientation_a != orientation_b {
         return orientation(p2, q2, p1) != orientation(p2, q2, q1);
     }
-
-    // Early exit if conditions for Proof 2 are not met
+    // Proof 2: three conditions must be met
+    // All points are colinear, i.e. all orientations = 0
     if orientation_a != 1 || orientation_b != 1 {
         return false;
     }
-
-    // Proof 2: three conditions must be met
-    // All points are colinear, i.e. all orientations = 0
-    // x-projections overlap
-    // Checking if x-projections and y-projections overlap
-    (max(p1.x, p2.x) <= min(q1.x, q2.x)) && (max(p1.y, p2.y) <= min(q1.y, q2.y))
+    // x-projections overlap 
+    if max(p1.x, q1.x) < min(p2.x, q2.x) { // x-projections do not overlap
+        return false;
+    } else if min(p1.x, q1.x) > max(p2.x, q2.x) { // x-projections do not overlap
+        return false;
+    // y-projections overlap
+    } else if max(p1.y, q1.y) < min(p2.y, q2.y) { // y-projections do not overlap
+        return false;
+    } else if min(p1.y, q1.y) > max(p2.y, q2.y) { // y-projections do not overlap
+        return false;
+    }    
+    true
 }
 
 // Orientation = sign of cross product of vectors (b - a) and (c - b)
@@ -450,21 +457,48 @@ mod tests {
     #[test]
     #[available_gas(20000000)]
     fn test_does_intersect() {
-        let mut p1 = Vec2Trait::new(FixedTrait::from_felt(0), FixedTrait::from_felt(TEN));
-        let mut q1 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(THIRTY));
-        let mut p2 = Vec2Trait::new(FixedTrait::from_felt(THIRTY), FixedTrait::from_felt(0));
-        let mut q2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(FORTY));
-        let intersect = does_intersect(p1, q1, p2, q2);
+        // Four test for same lines, same intersection, but switching p's and q's for one or both lines
+        let mut p1 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(THIRTY));
+        let mut q1 = Vec2Trait::new(FixedTrait::from_felt(0), FixedTrait::from_felt(TEN));
+        let mut p2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(FORTY));
+        let mut q2 = Vec2Trait::new(FixedTrait::from_felt(THIRTY), FixedTrait::from_felt(0));
+        let mut intersect = does_intersect(p1, q1, p2, q2);
         assert(intersect == true, 'invalid intersection');
 
+        // Switch only p1,q1
+        p1 = Vec2Trait::new(FixedTrait::from_felt(0), FixedTrait::from_felt(TEN));
+        q1 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(THIRTY));
+        p2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(FORTY));
+        q2 = Vec2Trait::new(FixedTrait::from_felt(THIRTY), FixedTrait::from_felt(0));
+        intersect = does_intersect(p1, q1, p2, q2);
+        assert(intersect == true, 'invalid intersection');
+
+        // Switch only p2,q2
+        p1 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(THIRTY));
+        q1 = Vec2Trait::new(FixedTrait::from_felt(0), FixedTrait::from_felt(TEN));
+        p2 = Vec2Trait::new(FixedTrait::from_felt(THIRTY), FixedTrait::from_felt(0));
+        q2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(FORTY));
+        intersect = does_intersect(p1, q1, p2, q2);
+        assert(intersect == true, 'invalid intersection');
+
+        // Switch both p1,q1 and p2,q2
+        p1 = Vec2Trait::new(FixedTrait::from_felt(0), FixedTrait::from_felt(TEN));
+        q1 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(THIRTY));
+        p2 = Vec2Trait::new(FixedTrait::from_felt(THIRTY), FixedTrait::from_felt(0));
+        q2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(FORTY));
+        intersect = does_intersect(p1, q1, p2, q2);
+        assert(intersect == true, 'invalid intersection');
+
+        // Now shorter line 2 so no intersection
         q2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TEN));
-        let intersect = does_intersect(p1, q1, p2, q2);
+        intersect = does_intersect(p1, q1, p2, q2);
         assert(intersect == false, 'invalid non-intersection');
 
+        // Colinear segments
         q1 = Vec2Trait::new(FixedTrait::from_felt(THIRTY), FixedTrait::from_felt(TEN));
         p2 = Vec2Trait::new(FixedTrait::from_felt(TWENTY), FixedTrait::from_felt(TEN));
         q2 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(TEN));
-        let intersect = does_intersect(p1, q1, p2, q2);
+        intersect = does_intersect(p1, q1, p2, q2);
         assert(intersect == true, 'invalid colinear intersection');
     }
 
