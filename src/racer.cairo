@@ -201,15 +201,15 @@ fn distances_to_wall(vehicle: Vehicle, near_wall: felt) -> Array<Fixed> {
     let q2 = vehicle.position.y + half_wall_height;
 
     let mut rays = ArrayTrait::new();
-    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_70_IN_RADS));
-    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_50_IN_RADS));
-    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_30_IN_RADS));
-    // rays.append(vehicle.steer - FixedTrait::from_felt(-1 * DEG_10_IN_RADS));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_70_IN_RADS, true));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_50_IN_RADS, true));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_30_IN_RADS, true));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_10_IN_RADS, true));
     rays.append(vehicle.steer);
-    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_10_IN_RADS));
-    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_30_IN_RADS));
-    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_50_IN_RADS));
-    // rays.append(vehicle.steer - FixedTrait::from_felt(DEG_70_IN_RADS));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_10_IN_RADS, false));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_30_IN_RADS, false));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_50_IN_RADS, false));
+    rays.append(vehicle.steer - FixedTrait::new(DEG_70_IN_RADS, false));
 
     loop {
         match rays.pop_front() {
@@ -526,7 +526,7 @@ mod tests {
         let p1 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TWENTY));
 
         let ray_length = FixedTrait::from_felt(FORTY);
-        let mut ray = FixedTrait::from_felt(-1 * DEG_30_IN_RADS);
+        let mut ray = FixedTrait::new(DEG_30_IN_RADS, true);
         let mut cos_ray = trig::cos_fast(ray);
         let mut sin_ray = trig::sin_fast(ray);
         let mut delta1 = Vec2Trait::new(ray_length * sin_ray, ray_length * cos_ray);
@@ -547,7 +547,7 @@ mod tests {
             distance, 553403467064578077655, 'invalid distance vert edge', Option::None(())
         );
 
-        ray = FixedTrait::from_felt(DEG_90_IN_RADS);
+        ray = FixedTrait::new(DEG_90_IN_RADS, false);
         cos_ray = trig::cos_fast(ray);
         sin_ray = trig::sin_fast(ray);
         delta1 = Vec2Trait::new(ray_length * sin_ray, ray_length * cos_ray);
