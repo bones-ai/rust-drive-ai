@@ -1,3 +1,7 @@
+use array::ArrayTrait;
+use cubit::types::vec2::Vec2;
+use cubit::types::fixed::FixedTrait;
+
 /// Number of enemies to spawn.
 const ENEMIES_NB: u8 = 10;
 /// Height of the grid.
@@ -14,6 +18,35 @@ struct Position {
     // Current vehicle position
     x: u128,
     y: u128,
+}
+
+trait PositionTrait {
+    /// Returns the vertices of the vehicle.
+    fn vertices(self: @Position) -> Span<Vec2>;
+}
+
+impl PostionImpl of PositionTrait {
+    fn vertices(self: @Position) -> Span<Vec2> {
+        // TODO: Calculate values
+        let mut vertices = ArrayTrait::new();
+        vertices
+            .append(
+                Vec2 { x: FixedTrait::new(*self.x, false), y: FixedTrait::new(*self.y, false) }
+            );
+        vertices
+            .append(
+                Vec2 { x: FixedTrait::new(*self.x, false), y: FixedTrait::new(*self.y, false) }
+            );
+        vertices
+            .append(
+                Vec2 { x: FixedTrait::new(*self.x, false), y: FixedTrait::new(*self.y, false) }
+            );
+        vertices
+            .append(
+                Vec2 { x: FixedTrait::new(*self.x, false), y: FixedTrait::new(*self.y, false) }
+            );
+        vertices.span()
+    }
 }
 
 #[system]
