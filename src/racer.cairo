@@ -1,12 +1,20 @@
+use traits::Into;
 use cubit::types::vec2::{Vec2, Vec2Trait};
 use cubit::types::fixed::{Fixed, FixedTrait, ONE_u128};
-use cubit::math::{trig, comp::{min, max}};
+use cubit::math::{trig, comp::{min, max}, core::{pow_int, sqrt}};
 use starknet::ContractAddress;
 use drive_ai::{Vehicle, VehicleTrait};
+use drive_ai::enemy::{
+    Position, PositionTrait, ENEMIES_NB, GRID_HEIGHT, GRID_WIDTH, CAR_HEIGHT, CAR_WIDTH
+};
+use drive_ai::math;
+use drive_ai::rays::{RaysTrait, Rays, Ray, RayTrait};
 use array::{ArrayTrait, SpanTrait};
 
-use orion::operators::tensor::core::Tensor;
-use orion::numbers::fixed_point::core::FixedType;
+use orion::operators::tensor::core::{Tensor, TensorTrait, ExtraParams};
+use orion::numbers::fixed_point::core as orion_fp;
+use orion::numbers::fixed_point::implementations::impl_16x16::FP16x16Impl;
+use orion::operators::tensor::implementations::impl_tensor_fp::Tensor_fp;
 
 #[derive(Component, Serde, SerdeLen, Drop, Copy)]
 struct Racer {
@@ -18,80 +26,105 @@ struct Racer {
 
 #[derive(Serde, Drop)]
 struct Sensors {
-    rays: Tensor<FixedType>,
+    rays: Tensor<orion_fp::FixedType>, 
+}
+
+#[derive(Serde, Drop, PartialEq)]
+enum Wall {
+    None: (),
+    Left: (),
+    Right: (),
 }
 
 const NUM_RAYS: u128 = 9; // must be ODD integer
 const RAYS_TOTAL_ANGLE_DEG: u128 = 140;
 const RAY_LENGTH: u128 = 150;
 
-const DEG_90_IN_RADS: u128 = 28976077338029890953;
-const DEG_70_IN_RADS: u128 = 22536387234850959209;
-const DEG_50_IN_RADS: u128 = 16098473553126325695;
-const DEG_30_IN_RADS: u128 = 9658715196994321226;
-const DEG_10_IN_RADS: u128 = 3218956840862316756;
+fn calculate_sensors(
+    vehicle: Vehicle, mut enemies: Array<Position>
+) -> Tensor<orion_fp::FixedType> {
+    let ray_segments = RaysTrait::new(vehicle.position, vehicle.steer).segments;
 
-fn distances_to_enemy(vehicle: Vehicle, enemy: Vehicle) -> Array<Fixed> {
-    // Empties then fills Sensors mutable array self.distances_to_obstacle for particular Enemy
-    let mut distances_to_obstacle = ArrayTrait::new();
+    // TODO: SCALE
+    let filter_dist = FixedTrait::new_unscaled(CAR_WIDTH + RAY_LENGTH, false);
 
-    let ray_length = FixedTrait::new(RAY_LENGTH, false);
-    let enemy_vertices = enemy.vertices();
+    let wall_sensors = match near_wall(vehicle) {
+        Wall::None(()) => {
+            ArrayTrait::<Fixed>::new()
+        },
+        Wall::Left(()) => {
+            distances_to_wall(vehicle, Wall::Left(()), ray_segments)
+        },
+        Wall::Right(()) => {
+            distances_to_wall(vehicle, Wall::Right(()), ray_segments)
+        },
+    };
 
-    let mut rays = ArrayTrait::new();
-    rays.append(vehicle.steer - FixedTrait::new(DEG_70_IN_RADS, true));
-    rays.append(vehicle.steer - FixedTrait::new(DEG_50_IN_RADS, true));
-    rays.append(vehicle.steer - FixedTrait::new(DEG_30_IN_RADS, true));
-    rays.append(vehicle.steer - FixedTrait::new(DEG_10_IN_RADS, true));
-    rays.append(vehicle.steer);
-    rays.append(vehicle.steer - FixedTrait::new(DEG_10_IN_RADS, false));
-    rays.append(vehicle.steer - FixedTrait::new(DEG_30_IN_RADS, false));
-    rays.append(vehicle.steer - FixedTrait::new(DEG_50_IN_RADS, false));
-    rays.append(vehicle.steer - FixedTrait::new(DEG_70_IN_RADS, false));
+    let filtered_enemies = filter_positions(vehicle, enemies);
 
-    let p1 = vehicle.position;
+    // TODO: Depth first search of sensor lengths,
+    // Iterate over all enemeies for each sensor and find the closest one
+    let mut enemy_sensors = ArrayTrait::<Fixed>::new();
+    let ray_idx = 0;
+    loop {
+        if (ray_idx == 8) {
+            break ();
+        }
+
+        enemy_sensors.append(closest_position(ray_segments.at(ray_idx), filtered_enemies.span()));
+    };
+
+    // TODO: zip wall_sensors and enemy_sensors
+
+    let mut shape = ArrayTrait::<usize>::new();
+    shape.append(5);
+    let mut sensors = ArrayTrait::<orion_fp::FixedType>::new();
+    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
+    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
+    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
+    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
+    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
+    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
+    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
+    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
+    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
+    let extra = Option::<ExtraParams>::None(());
+    TensorTrait::new(shape.span(), sensors.span(), extra)
+}
+
+fn filter_positions(vehicle: Vehicle, mut positions: Array<Position>) -> Array<Position> {
+    // For option 1 below
+    // TODO: I think this assumes the orientation of the car? Might need to be a square with edges RAY + HEIGHT
+    let max_horiz_dist = FixedTrait::new_unscaled(CAR_WIDTH + RAY_LENGTH, false);
+    let max_vert_dist = FixedTrait::new_unscaled(CAR_HEIGHT + RAY_LENGTH, false);
+
+    // // For option 2 below
+    // let max_dist = FixedTrait::new_unscaled(CAR_HEIGHT + RAY_LENGTH, false);
+
+    // Will hold near positions' enemy_idx values
+    let mut near = ArrayTrait::new();
 
     loop {
-        match rays.pop_front() {
-            Option::Some(ray) => {
-                // Endpoints of Ray
-                // TODO: Rays are semetric, we calculate half and invert
-                let cos_ray = trig::cos_fast(ray);
-                let sin_ray = trig::sin_fast(ray);
-                let delta1 = Vec2Trait::new(ray_length * sin_ray, ray_length * cos_ray);
-                let q1 = p1 + delta1;
-
-                // Counter for inner loop: check each edge of Enemy for intersection with this ray
-                let mut edge: usize = 0;
-
-                // TODO: Only check two visible edges
-                loop {
-                    if edge >= 3 {
-                        break ();
-                    }
-
-                    // Endpoints of edge
-                    let p2 = enemy_vertices.at(edge);
-
-                    let mut q2_idx = edge + 1;
-                    if q2_idx == 4 {
-                        q2_idx = 0;
-                    }
-
-                    let q2 = enemy_vertices.at(q2_idx);
-
-                    if does_intersect(p1, q1, *p2, *q2) {
-                        distances_to_obstacle
-                            .append(distance_to_intersection(p1, q1, *p2, *q2, cos_ray, sin_ray));
-
-                        // Break early if we detect an intersection, since there can be only one.
-                        break ();
-                    } else {
-                        distances_to_obstacle.append(FixedTrait::new(0, false));
-                    }
-
-                    edge += 1;
-                };
+        match positions.pop_front() {
+            Option::Some(position) => {
+                // Option 1: Box - This may be cheaper than distance calculation in option 2, 
+                // but may include unneeded positions near corners of box, which could be more expensive
+                // TODO: Avoid all the `FixedTrait::new_unscaled` calls
+                if (FixedTrait::new_unscaled(position.x, false) - vehicle.position.x)
+                    .abs() <= max_horiz_dist
+                    && (FixedTrait::new_unscaled(position.y, false) - vehicle.position.y)
+                        .abs() <= max_vert_dist {
+                    near.append(position);
+                }
+            // // Option 2: Semi-circle - This may eliminate some positions near corners of box in option 2,
+            // // but may include (probably fewer) unneeded positions at the sides where max distance reduces 
+            // // to as low as CAR_WIDTH + RAY_LENGTH
+            // let delta_x_squared = pow_int(position.x - vehicle.position.x, 2, false);
+            // let delta_y_squared = pow_int(position.y - vehicle.position.y, 2, false);
+            // let distance = sqrt(delta_x_squared + delta_y_squared);
+            // if distance <= max_dist {
+            //     near.append(enemy_idx);
+            // }
             },
             Option::None(_) => {
                 break ();
@@ -99,11 +132,102 @@ fn distances_to_enemy(vehicle: Vehicle, enemy: Vehicle) -> Array<Fixed> {
         };
     };
 
-    distances_to_obstacle
+    near
 }
 
-// TODO
-fn distances_to_wall() {}
+fn closest_position(ray: @Ray, mut positions: Span<Position>) -> Fixed {
+    let mut closest = FixedTrait::new_unscaled(0, false);
+
+    loop {
+        match positions.pop_front() {
+            Option::Some(position) => {
+                let mut edge: usize = 0;
+
+                // TODO: Only check visible edges
+                loop {
+                    if edge >= 3 {
+                        break ();
+                    }
+
+                    let vertices = position.vertices();
+
+                    // Endpoints of edge
+                    let p2 = vertices.at(edge);
+                    let mut q2_idx = edge + 1;
+                    if q2_idx == 4 {
+                        q2_idx = 0;
+                    }
+
+                    let q2 = vertices.at(q2_idx);
+                    if ray.intersects(*p2, *q2) {
+                        let dist = ray.dist(*p2, *q2);
+                        if dist < closest {
+                            closest = dist;
+                        }
+                    }
+
+                    edge += 1;
+                }
+            },
+            Option::None(_) => {
+                break ();
+            }
+        };
+    };
+
+    closest
+}
+
+fn near_wall(vehicle: Vehicle) -> Wall {
+    // TODO: SCALE
+    if vehicle.position.x <= FixedTrait::new_unscaled(RAY_LENGTH, false) {
+        return Wall::Left(());
+    // TODO: SCALE
+    } else if vehicle.position.x >= FixedTrait::new_unscaled(GRID_WIDTH - RAY_LENGTH, false) {
+        return Wall::Right(());
+    }
+    return Wall::None(());
+}
+
+fn distances_to_wall(vehicle: Vehicle, near_wall: Wall, mut rays: Span<Ray>) -> Array<Fixed> {
+    let mut sensors = ArrayTrait::<Fixed>::new();
+
+    let ray_length = FixedTrait::new_unscaled(RAY_LENGTH, false);
+    let car_height = FixedTrait::new_unscaled(CAR_HEIGHT, false);
+    // TODO: Im not sure i understand this
+    let half_wall_height = ray_length + car_height;
+
+    let wall_position_x = match near_wall {
+        Wall::None(()) => {
+            return sensors;
+        },
+        Wall::Left(()) => FixedTrait::new(0, false),
+        // TODO: SCALE
+        Wall::Right(()) => FixedTrait::new_unscaled(GRID_WIDTH, false),
+    };
+
+    let p2 = Vec2 { x: wall_position_x, y: vehicle.position.y - half_wall_height };
+    let q2 = Vec2 { x: wall_position_x, y: vehicle.position.y + half_wall_height };
+
+    // TODO: We can exit early on some conditions here, since, for example, if the left most ray math::intersects, the right most can't
+    loop {
+        match rays.pop_front() {
+            Option::Some(ray) => {
+                // Endpoints of Ray
+                if ray.intersects(p2, q2) {
+                    sensors.append(ray.dist(p2, q2));
+                } else {
+                    sensors.append(FixedTrait::new(0, false));
+                }
+            },
+            Option::None(_) => {
+                break ();
+            }
+        };
+    };
+
+    sensors
+}
 
 // TODO
 fn collision_enemy_check() {}
@@ -111,66 +235,6 @@ fn collision_enemy_check() {}
 // TODO
 fn collision_wall_check() {}
 
-// Cool algorithm - see pp. 4-10 at https://www.dcs.gla.ac.uk/~pat/52233/slides/Geometry1x1.pdf
-// Determines if segments p1q1 and p2q2 intersect 
-fn does_intersect(p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2) -> bool {
-    let orientation_a = orientation(p1, q1, p2);
-    let orientation_b = orientation(p1, q1, q2);
-
-    // Early exit if two conditions for Proof 1 are met
-    if orientation_a != orientation_b {
-        return orientation(p2, q2, p1) != orientation(p2, q2, q1);
-    }
-
-    // Early exit if conditions for Proof 2 are not met
-    if orientation_a != 1 || orientation_b != 1 {
-        return false;
-    }
-
-    // Proof 2: three conditions must be met
-    // All points are colinear, i.e. all orientations = 0
-    // x-projections overlap
-    // Checking if x-projections and y-projections overlap
-    (max(p1.x, p2.x) <= min(q1.x, q2.x)) && (max(p1.y, p2.y) <= min(q1.y, q2.y))
-}
-
-// Orientation = sign of cross product of vectors (b - a) and (c - b)
-// (simpler than what they do in link above)
-fn orientation(a: Vec2, b: Vec2, c: Vec2) -> u8 {
-    let ab = b - a;
-    let bc = c - b;
-    let cross_product = ab.cross(bc);
-
-    if cross_product.mag > 0 {
-        if !cross_product.sign {
-            return 2;
-        }
-
-        return 0;
-    }
-
-    return 1;
-}
-
-// Finds distance from p1 to intersection of segments p1q1 and p2q2
-fn distance_to_intersection(
-    p1: Vec2, q1: Vec2, p2: Vec2, q2: Vec2, cos_ray: Fixed, sin_ray: Fixed
-) -> Fixed {
-    // All enemy edges are either vertical or horizontal
-    if p2.y == q2.y { // Enemy edge is horizontal
-        if p2.y == p1.y { // Ray is colinear with enemy edge
-            return min((p2.x - p1.x).abs(), (q2.x - p1.x).abs());
-        } else {
-            return ((p2.y - p1.y) / cos_ray).abs();
-        }
-    } else { // Enemy edge is vertical
-        if p2.x == p1.x { // Ray is colinear with enemy edge
-            return min((p2.y - p1.y).abs(), (q2.y - p1.y).abs());
-        } else {
-            return ((p2.x - p1.x) / sin_ray).abs();
-        }
-    }
-}
 
 #[system]
 mod spawn_racer {
@@ -217,11 +281,11 @@ mod drive {
     use dojo::world::Context;
     use drive_ai::Vehicle;
 
-    use super::{Racer, distances_to_enemy};
+    use super::Racer;
 
     fn execute(ctx: Context, model: felt252) {
         let (racer, vehicle) = get !(ctx.world, model.into(), (Racer, Vehicle));
-        let sensors = distances_to_enemy(vehicle, vehicle);
+        // let sensors = distances_to_enemy(vehicle, vehicle);
 
         let mut calldata = ArrayTrait::new();
         calldata.append(model);
@@ -244,22 +308,40 @@ mod tests {
     use array::SpanTrait;
     use drive_ai::{Vehicle, VehicleTrait};
 
-    use super::{Sensors, does_intersect, orientation, distance_to_intersection};
-
-    const RAY_LENGTH: u128 = 150;
+    use super::{Sensors, near_wall};
 
     const TEN: felt252 = 184467440737095516160;
-    const TWENTY: felt252 = 368934881474191032320;
-    const TWENTY_FIVE: felt252 = 461168601842738790400;
-    const THIRTY: felt252 = 553402322211286548480;
-    const FORTY: felt252 = 737869762948382064640;
-    const FIFTY: felt252 = 922337203685477580800;
-    const SIXTY: felt252 = 1106804644422573096960;
-    const EIGHTY: felt252 = 1475739525896764129280;
     const HUNDRED: felt252 = 1844674407370955161600;
 
-    const DEG_30_IN_RADS: felt252 = 9658715196994321226;
-    const DEG_90_IN_RADS: felt252 = 28976077338029890953;
+    // TODO FINISH
+    #[test]
+    #[available_gas(20000000)]
+    fn test_sensors() {}
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_near_obstacles() {}
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_near_enemies() {
+        let vehicle = Vehicle {
+            position: Vec2Trait::new(FixedTrait::from_felt(HUNDRED), FixedTrait::from_felt(TEN)),
+            steer: FixedTrait::new(0, false),
+            speed: FixedTrait::new(0, false)
+        };
+        let mut enemies = ArrayTrait::<Vehicle>::new();
+        let mut enemy = Vehicle {
+            position: Vec2Trait::new(FixedTrait::from_felt(HUNDRED), FixedTrait::from_felt(TEN)),
+            steer: FixedTrait::new(0, false),
+            speed: FixedTrait::new(10, false)
+        };
+    }
+
+    // TODO
+    #[test]
+    #[available_gas(20000000)]
+    fn test_near_wall() {}
 
     // TODO
     #[test]
@@ -280,98 +362,4 @@ mod tests {
     #[test]
     #[available_gas(20000000)]
     fn test_collision_wall_check() {}
-
-
-    #[test]
-    #[available_gas(20000000)]
-    fn test_does_intersect() {
-        let mut p1 = Vec2Trait::new(FixedTrait::from_felt(0), FixedTrait::from_felt(TEN));
-        let mut q1 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(THIRTY));
-        let mut p2 = Vec2Trait::new(FixedTrait::from_felt(THIRTY), FixedTrait::from_felt(0));
-        let mut q2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(FORTY));
-        let intersect = does_intersect(p1, q1, p2, q2);
-        assert(intersect == true, 'invalid intersection');
-
-        q2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TEN));
-        let intersect = does_intersect(p1, q1, p2, q2);
-        assert(intersect == false, 'invalid non-intersection');
-
-        q1 = Vec2Trait::new(FixedTrait::from_felt(THIRTY), FixedTrait::from_felt(TEN));
-        p2 = Vec2Trait::new(FixedTrait::from_felt(TWENTY), FixedTrait::from_felt(TEN));
-        q2 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(TEN));
-        let intersect = does_intersect(p1, q1, p2, q2);
-        assert(intersect == true, 'invalid colinear intersection');
-    }
-
-    #[test]
-    #[available_gas(20000000)]
-    fn test_orientation() {
-        let a = Vec2Trait::new(FixedTrait::from_felt(0), FixedTrait::from_felt(TEN));
-        let b = Vec2Trait::new(FixedTrait::from_felt(TWENTY), FixedTrait::from_felt(TWENTY));
-        let mut c = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(FORTY));
-        let mut orientation = orientation(a, b, c);
-        assert(orientation == 2_u8, 'invalid positive orientation');
-
-        c = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(THIRTY));
-        orientation = orientation(a, b, c);
-        assert(orientation == 1_u8, 'invalid zero orientation');
-
-        c = Vec2Trait::new(FixedTrait::from_felt(THIRTY), FixedTrait::zero());
-        orientation = orientation(a, b, c);
-        assert(orientation == 0_u8, 'invalid negative orientation');
-    }
-
-    #[test]
-    #[available_gas(20000000)]
-    fn test_distance_to_intersection() {
-        let p1 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(TWENTY));
-
-        let ray_length = FixedTrait::from_felt(FORTY);
-        let mut ray = FixedTrait::from_felt(-1 * DEG_30_IN_RADS);
-        let mut cos_ray = trig::cos_fast(ray);
-        let mut sin_ray = trig::sin_fast(ray);
-        let mut delta1 = Vec2Trait::new(ray_length * sin_ray, ray_length * cos_ray);
-        let mut q1 = p1 + delta1;
-        let mut p2 = Vec2Trait::new(FixedTrait::from_felt(TWENTY), FixedTrait::from_felt(FIFTY));
-        let mut q2 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(FIFTY));
-        let mut distance = distance_to_intersection(p1, q1, p2, q2, cos_ray, sin_ray);
-        // ~34.6410161513775
-        assert_precise(
-            distance, 639017084058308293480, 'invalid distance horiz edge', Option::None(())
-        );
-
-        p2 = Vec2Trait::new(FixedTrait::from_felt(TWENTY_FIVE), FixedTrait::from_felt(FORTY));
-        q2 = Vec2Trait::new(FixedTrait::from_felt(TWENTY_FIVE), FixedTrait::from_felt(SIXTY));
-        distance = distance_to_intersection(p1, q1, p2, q2, cos_ray, sin_ray);
-        // ~23.0940107675850
-        assert_precise(
-            distance, 553403467064578077655, 'invalid distance vert edge', Option::None(())
-        );
-
-        ray = FixedTrait::from_felt(DEG_90_IN_RADS);
-        cos_ray = trig::cos_fast(ray);
-        sin_ray = trig::sin_fast(ray);
-        delta1 = Vec2Trait::new(ray_length * sin_ray, ray_length * cos_ray);
-        q1 = p1 + delta1;
-        p2 = Vec2Trait::new(FixedTrait::from_felt(FORTY), FixedTrait::from_felt(TWENTY));
-        q2 = Vec2Trait::new(FixedTrait::from_felt(SIXTY), FixedTrait::from_felt(TWENTY));
-        distance = distance_to_intersection(p1, q1, p2, q2, cos_ray, sin_ray);
-        // ~30.0
-        assert_precise(
-            distance, 553402322211287000000, 'invalid dist colin-horiz edge', Option::None(())
-        );
-
-        ray = FixedTrait::from_felt(0);
-        cos_ray = trig::cos_fast(ray);
-        sin_ray = trig::sin_fast(ray);
-        delta1 = Vec2Trait::new(ray_length * sin_ray, ray_length * cos_ray);
-        q1 = p1 + delta1;
-        p2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(FIFTY));
-        q2 = Vec2Trait::new(FixedTrait::from_felt(TEN), FixedTrait::from_felt(EIGHTY));
-        distance = distance_to_intersection(p1, q1, p2, q2, cos_ray, sin_ray);
-        // ~30.0
-        assert_precise(
-            distance, 553402322211287000000, 'invalid dist colin vert edge', Option::None(())
-        );
-    }
 }
