@@ -27,15 +27,15 @@ impl RaysImpl of RaysTrait {
         let ray_length = FixedTrait::new_unscaled(RAY_LENGTH, false);
 
         let mut rays_theta = ArrayTrait::new();
-        rays_theta.append(theta - FixedTrait::new(DEG_70_IN_RADS, true));
+        // rays_theta.append(theta - FixedTrait::new(DEG_70_IN_RADS, true));
         rays_theta.append(theta - FixedTrait::new(DEG_50_IN_RADS, true));
         rays_theta.append(theta - FixedTrait::new(DEG_30_IN_RADS, true));
-        rays_theta.append(theta - FixedTrait::new(DEG_10_IN_RADS, true));
+        // rays_theta.append(theta - FixedTrait::new(DEG_10_IN_RADS, true));
         rays_theta.append(theta);
-        rays_theta.append(theta - FixedTrait::new(DEG_10_IN_RADS, false));
+        // rays_theta.append(theta - FixedTrait::new(DEG_10_IN_RADS, false));
         rays_theta.append(theta - FixedTrait::new(DEG_30_IN_RADS, false));
         rays_theta.append(theta - FixedTrait::new(DEG_50_IN_RADS, false));
-        rays_theta.append(theta - FixedTrait::new(DEG_70_IN_RADS, false));
+        // rays_theta.append(theta - FixedTrait::new(DEG_70_IN_RADS, false));
 
         // TODO: Rays are semetric, we calculate half and invert
         let mut segments = ArrayTrait::new();

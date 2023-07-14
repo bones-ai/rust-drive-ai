@@ -36,8 +36,6 @@ enum Wall {
     Right: (),
 }
 
-const NUM_RAYS: u128 = 9; // must be ODD integer
-const RAYS_TOTAL_ANGLE_DEG: u128 = 140;
 const RAY_LENGTH: u128 = 150;
 
 fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
@@ -60,12 +58,11 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
 
     let filtered_enemies = filter_positions(vehicle, enemies);
 
-    // TODO: Depth first search of sensor lengths,
     // Iterate over all enemeies for each sensor and find the closest one
     let mut enemy_sensors = ArrayTrait::<Fixed>::new();
     let ray_idx = 0;
     loop {
-        if (ray_idx == 8) {
+        if (ray_idx == 5) {
             break ();
         }
 
@@ -77,10 +74,6 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
     let mut shape = ArrayTrait::<usize>::new();
     shape.append(5);
     let mut sensors = ArrayTrait::<orion_fp::FixedType>::new();
-    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
-    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
-    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
-    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
     sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
     sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
     sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
@@ -309,7 +302,6 @@ mod drive {
         // 3. Update car position
         vehicle.control(controls);
         vehicle.drive();
-
         set !(
             ctx.world,
             model.into(),

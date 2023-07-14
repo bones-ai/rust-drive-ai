@@ -139,7 +139,7 @@ mod tests {
         let sensors = create_sensors();
         let control = world.execute('model'.into(), sensors.span());
 
-        //Expect prediction == 2 -> Rigth:
+        // Expect prediction == 2 -> Rigth:
         assert(*control[0] == 2, 'invalid prediction')
     }
 
