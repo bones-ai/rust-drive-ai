@@ -60,13 +60,15 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
 
     // Iterate over all enemeies for each sensor and find the closest one
     let mut enemy_sensors = ArrayTrait::<Fixed>::new();
-    let ray_idx = 0;
+    let mut ray_idx = 0;
     loop {
         if (ray_idx == 5) {
             break ();
         }
 
         enemy_sensors.append(closest_position(ray_segments.at(ray_idx), filtered_enemies.span()));
+
+        ray_idx += 1;
     };
 
     // TODO: zip wall_sensors and enemy_sensors
