@@ -1,11 +1,10 @@
 use array::ArrayTrait;
 use cubit::types::vec2::Vec2;
 use cubit::types::fixed::FixedTrait;
+use drive_ai::racer::{CAR_HEIGHT as CAR_HEIGHT_SCALED, CAR_WIDTH as CAR_WIDTH_SCALED};
 
 /// Number of enemies to spawn.
 const ENEMIES_NB: u8 = 10;
-
-// For this file, these const's should remain unscaled (?)
 
 /// Height of the grid.
 const GRID_HEIGHT: u128 = 1000;
@@ -30,23 +29,34 @@ trait PositionTrait {
 
 impl PostionImpl of PositionTrait {
     fn vertices(self: @Position) -> Span<Vec2> {
-        // TODO: Calculate values
         let mut vertices = ArrayTrait::new();
         vertices
             .append(
-                Vec2 { x: FixedTrait::new(*self.x, false), y: FixedTrait::new(*self.y, false) }
+                Vec2 {
+                    x: FixedTrait::new(*self.x + CAR_WIDTH_SCALED, false),
+                    y: FixedTrait::new(*self.y + CAR_HEIGHT_SCALED, false)
+                }
             );
         vertices
             .append(
-                Vec2 { x: FixedTrait::new(*self.x, false), y: FixedTrait::new(*self.y, false) }
+                Vec2 {
+                    x: FixedTrait::new(*self.x - CAR_WIDTH_SCALED, false),
+                    y: FixedTrait::new(*self.y + CAR_HEIGHT_SCALED, false)
+                }
             );
         vertices
             .append(
-                Vec2 { x: FixedTrait::new(*self.x, false), y: FixedTrait::new(*self.y, false) }
+                Vec2 {
+                    x: FixedTrait::new(*self.x - CAR_WIDTH, false),
+                    y: FixedTrait::new(*self.y - CAR_HEIGHT_SCALED, false)
+                }
             );
         vertices
             .append(
-                Vec2 { x: FixedTrait::new(*self.x, false), y: FixedTrait::new(*self.y, false) }
+                Vec2 {
+                    x: FixedTrait::new(*self.x + CAR_WIDTH, false),
+                    y: FixedTrait::new(*self.y - CAR_HEIGHT_SCALED, false)
+                }
             );
         vertices.span()
     }

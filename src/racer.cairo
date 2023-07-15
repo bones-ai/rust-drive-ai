@@ -217,8 +217,7 @@ fn distances_to_wall(vehicle: Vehicle, near_wall: Wall, mut rays: Span<Ray>) -> 
     sensors
 }
 
-// TODO
-fn collision_check(vehicle: Vehicle) {
+fn collision_check(vehicle: Vehicle) -> bool {
     let vertices = vehicle.vertices();
 
     // Wall collision check
@@ -270,6 +269,10 @@ fn collision_check(vehicle: Vehicle) {
             }
         },
     };
+
+    if wall_collision {
+        return true;
+    }
 // TODO Enemy collision check
 
 }
