@@ -1,12 +1,9 @@
 use array::ArrayTrait;
 use cubit::types::vec2::{Vec2, Vec2Trait};
 use cubit::types::fixed::{Fixed, FixedTrait, FixedPrint, ONE_u128};
+use drive_ai::racer::{CAR_HEIGHT, CAR_WIDTH};
 use cubit::math::trig;
 use drive_ai::math;
-
-// // Vehicle dimensions, stored in half-lengths
-const WIDTH: u128 = 184467440737095516160;
-const HEIGHT: u128 = 184467440737095516160;
 
 #[derive(Component, Serde, Drop, Copy)]
 struct Vehicle {
@@ -73,8 +70,8 @@ impl VehicleImpl of VehicleTrait {
     fn vertices(self: @Vehicle) -> Span<Vec2> {
         math::vertices(
             *self.position,
-            FixedTrait::new(WIDTH, false),
-            FixedTrait::new(HEIGHT, false),
+            FixedTrait::new(CAR_WIDTH, false),
+            FixedTrait::new(CAR_HEIGHT, false),
             *self.steer
         )
     }
