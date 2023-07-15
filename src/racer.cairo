@@ -5,7 +5,7 @@ use cubit::math::{trig, comp::{min, max}, core::{pow_int, sqrt}};
 use starknet::ContractAddress;
 use drive_ai::{Vehicle, VehicleTrait};
 use drive_ai::enemy::{Position, PositionTrait};
-use drive_ai::math;
+use drive_ai::math::{intersects};
 use drive_ai::rays::{RaysTrait, Rays, Ray, RayTrait, RAY_LENGTH};
 use array::{ArrayTrait, SpanTrait};
 
