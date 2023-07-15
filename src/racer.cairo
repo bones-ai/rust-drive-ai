@@ -4,11 +4,9 @@ use cubit::types::fixed::{Fixed, FixedTrait, ONE_u128};
 use cubit::math::{trig, comp::{min, max}, core::{pow_int, sqrt}};
 use starknet::ContractAddress;
 use drive_ai::{Vehicle, VehicleTrait};
-use drive_ai::enemy::{
-    Position, PositionTrait, ENEMIES_NB, GRID_HEIGHT, GRID_WIDTH, CAR_HEIGHT, CAR_WIDTH
-};
+use drive_ai::enemy::{Position, PositionTrait};
 use drive_ai::math;
-use drive_ai::rays::{RaysTrait, Rays, Ray, RayTrait};
+use drive_ai::rays::{RaysTrait, Rays, Ray, RayTrait, RAY_LENGTH};
 use array::{ArrayTrait, SpanTrait};
 
 use orion::operators::tensor::core::{Tensor, TensorTrait, ExtraParams};
@@ -36,13 +34,15 @@ enum Wall {
     Right: (),
 }
 
-const RAY_LENGTH: u128 = 150;
+const GRID_HEIGHT: u128 = 18446744073709551616000; // 1000
+const GRID_WIDTH: u128 = 7378697629483820646400; // 400
+const CAR_HEIGHT: u128 = 590295810358705651712; //32
+const CAR_WIDTH: u128 = 295147905179352825856; //16
 
 fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
     let ray_segments = RaysTrait::new(vehicle.position, vehicle.steer).segments;
 
-    // TODO: SCALE
-    let filter_dist = FixedTrait::new_unscaled(CAR_WIDTH + RAY_LENGTH, false);
+    let filter_dist = FixedTrait::new(CAR_WIDTH + RAY_LENGTH, false); // Is this used?
 
     let wall_sensors = match near_wall(vehicle) {
         Wall::None(()) => {
@@ -76,11 +76,11 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
     let mut shape = ArrayTrait::<usize>::new();
     shape.append(5);
     let mut sensors = ArrayTrait::<orion_fp::FixedType>::new();
-    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
-    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
-    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
-    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
-    sensors.append(orion_fp::FixedTrait::new_unscaled(0, false));
+    sensors.append(orion_fp::FixedTrait::new(0, false));
+    sensors.append(orion_fp::FixedTrait::new(0, false));
+    sensors.append(orion_fp::FixedTrait::new(0, false));
+    sensors.append(orion_fp::FixedTrait::new(0, false));
+    sensors.append(orion_fp::FixedTrait::new(0, false));
     let extra = Option::<ExtraParams>::None(());
     Sensors { rays: TensorTrait::new(shape.span(), sensors.span(), extra) }
 }
@@ -88,11 +88,11 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
 fn filter_positions(vehicle: Vehicle, mut positions: Array<Position>) -> Array<Position> {
     // For option 1 below
     // TODO: I think this assumes the orientation of the car? Might need to be a square with edges RAY + HEIGHT
-    let max_horiz_dist = FixedTrait::new_unscaled(CAR_WIDTH + RAY_LENGTH, false);
-    let max_vert_dist = FixedTrait::new_unscaled(CAR_HEIGHT + RAY_LENGTH, false);
+    let max_horiz_dist = FixedTrait::new(CAR_WIDTH + RAY_LENGTH, false);
+    let max_vert_dist = FixedTrait::new(CAR_HEIGHT + RAY_LENGTH, false);
 
     // // For option 2 below
-    // let max_dist = FixedTrait::new_unscaled(CAR_HEIGHT + RAY_LENGTH, false);
+    // let max_dist = FixedTrait::new(CAR_HEIGHT + RAY_LENGTH, false);
 
     // Will hold near positions' enemy_idx values
     let mut near = ArrayTrait::new();
@@ -102,10 +102,8 @@ fn filter_positions(vehicle: Vehicle, mut positions: Array<Position>) -> Array<P
             Option::Some(position) => {
                 // Option 1: Box - This may be cheaper than distance calculation in option 2, 
                 // but may include unneeded positions near corners of box, which could be more expensive
-                // TODO: Avoid all the `FixedTrait::new_unscaled` calls
-                if (FixedTrait::new_unscaled(position.x, false) - vehicle.position.x)
-                    .abs() <= max_horiz_dist
-                    && (FixedTrait::new_unscaled(position.y, false) - vehicle.position.y)
+                if (FixedTrait::new(position.x, false) - vehicle.position.x).abs() <= max_horiz_dist
+                    && (FixedTrait::new(position.y, false) - vehicle.position.y)
                         .abs() <= max_vert_dist {
                     near.append(position);
                 }
@@ -129,7 +127,7 @@ fn filter_positions(vehicle: Vehicle, mut positions: Array<Position>) -> Array<P
 }
 
 fn closest_position(ray: @Ray, mut positions: Span<Position>) -> Fixed {
-    let mut closest = FixedTrait::new_unscaled(0, false);
+    let mut closest = FixedTrait::new(0, false);
 
     loop {
         match positions.pop_front() {
@@ -173,10 +171,10 @@ fn closest_position(ray: @Ray, mut positions: Span<Position>) -> Fixed {
 
 fn near_wall(vehicle: Vehicle) -> Wall {
     // TODO: SCALE
-    if vehicle.position.x <= FixedTrait::new_unscaled(RAY_LENGTH, false) {
+    if vehicle.position.x <= FixedTrait::new(RAY_LENGTH, false) {
         return Wall::Left(());
     // TODO: SCALE
-    } else if vehicle.position.x >= FixedTrait::new_unscaled(GRID_WIDTH - RAY_LENGTH, false) {
+    } else if vehicle.position.x >= FixedTrait::new(GRID_WIDTH - RAY_LENGTH, false) {
         return Wall::Right(());
     }
     return Wall::None(());
@@ -185,10 +183,7 @@ fn near_wall(vehicle: Vehicle) -> Wall {
 fn distances_to_wall(vehicle: Vehicle, near_wall: Wall, mut rays: Span<Ray>) -> Array<Fixed> {
     let mut sensors = ArrayTrait::<Fixed>::new();
 
-    let ray_length = FixedTrait::new_unscaled(RAY_LENGTH, false);
-    let car_height = FixedTrait::new_unscaled(CAR_HEIGHT, false);
-    // TODO: Im not sure i understand this
-    let half_wall_height = ray_length + car_height;
+    let ray_length = FixedTrait::new(RAY_LENGTH, false);
 
     let wall_position_x = match near_wall {
         Wall::None(()) => {
@@ -196,11 +191,11 @@ fn distances_to_wall(vehicle: Vehicle, near_wall: Wall, mut rays: Span<Ray>) -> 
         },
         Wall::Left(()) => FixedTrait::new(0, false),
         // TODO: SCALE
-        Wall::Right(()) => FixedTrait::new_unscaled(GRID_WIDTH, false),
+        Wall::Right(()) => FixedTrait::new(GRID_WIDTH, false),
     };
 
-    let p2 = Vec2 { x: wall_position_x, y: vehicle.position.y - half_wall_height };
-    let q2 = Vec2 { x: wall_position_x, y: vehicle.position.y + half_wall_height };
+    let p2 = Vec2 { x: wall_position_x, y: FixedTrait::new(0, false) };
+    let q2 = Vec2 { x: wall_position_x, y: FixedTrait::new(GRID_HEIGHT, false) };
 
     // TODO: We can exit early on some conditions here, since, for example, if the left most ray math::intersects, the right most can't
     loop {
@@ -223,10 +218,61 @@ fn distances_to_wall(vehicle: Vehicle, near_wall: Wall, mut rays: Span<Ray>) -> 
 }
 
 // TODO
-fn collision_enemy_check() {}
+fn collision_check(vehicle: Vehicle) {
+    let vertices = vehicle.vertices();
 
-// TODO
-fn collision_wall_check() {}
+    // Wall collision check
+    let wall_collision: bool = match near_wall(vehicle) {
+        Wall::None(()) => false,
+        Wall::Left(()) => { // not 100% sure of syntax here at end
+            let cos_theta = trig::cos_fast(vehicle.steer);
+            let sin_theta = trig::sin_fast(vehicle.steer);
+
+            // Check only left edge (vertex 1 to 2)
+            let closest_edge = Ray {
+                theta: vehicle.steer,
+                cos_theta: cos_theta,
+                sin_theta: sin_theta,
+                p: vertices.at(1),
+                q: vertices.at(2),
+            };
+            let p2 = Vec2 { x: FixedTrait::new(0, false), y: FixedTrait::new(0, false) };
+            let q2 = Vec2 { x: FixedTrait::new(0, false), y: FixedTrait::new(GRID_HEIGHT, false) };
+
+            if closest_edge.intersects(p2, q2) {
+                true
+            } else {
+                false
+            }
+        },
+        Wall::Right(()) => { // not 100% sure of syntax here at end
+            let cos_theta = trig::cos_fast(vehicle.steer);
+            let sin_theta = trig::sin_fast(vehicle.steer);
+
+            // Check only right edge (vertex 3 to 0)
+            let closest_edge = Ray {
+                theta: vehicle.steer,
+                cos_theta: cos_theta,
+                sin_theta: sin_theta,
+                p: vertices.at(3),
+                q: vertices.at(0),
+            };
+
+            let p2 = Vec2 { x: FixedTrait::new(GRID_WIDTH, false), y: FixedTrait::new(0, false) };
+            let q2 = Vec2 {
+                x: FixedTrait::new(GRID_WIDTH, false), y: FixedTrait::new(GRID_HEIGHT, false)
+            };
+
+            if closest_edge.intersects(p2, q2) {
+                true
+            } else {
+                false
+            }
+        },
+    };
+// TODO Enemy collision check
+
+}
 
 
 #[system]
@@ -241,10 +287,10 @@ mod spawn_racer {
 
     use super::Racer;
 
+    const FIFTY: u128 = 922337203685477580800;
+
     fn execute(ctx: Context, model: felt252) {
-        let position = Vec2Trait::new(
-            FixedTrait::new_unscaled(50, false), FixedTrait::new_unscaled(0, false)
-        );
+        let position = Vec2Trait::new(FixedTrait::new(FIFTY, false), FixedTrait::new(0, false));
         set !(
             ctx.world,
             model.into(),
@@ -253,8 +299,8 @@ mod spawn_racer {
                     driver: ctx.origin, model
                     }, Vehicle {
                     position,
-                    steer: FixedTrait::new_unscaled(0_u128, false),
-                    speed: FixedTrait::new_unscaled(50_u128, false),
+                    steer: FixedTrait::new(0_u128, false),
+                    speed: FixedTrait::new(FIFTY, false),
                 }
             )
         );

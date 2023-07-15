@@ -11,7 +11,7 @@ const DEG_50_IN_RADS: u128 = 16098473553126325695;
 const DEG_30_IN_RADS: u128 = 9658715196994321226;
 const DEG_10_IN_RADS: u128 = 3218956840862316756;
 
-const RAY_LENGTH: u128 = 150;
+const RAY_LENGTH: u128 = 2767011611056432742400; // 150
 
 #[derive(Serde, Drop)]
 struct Rays {
@@ -24,7 +24,7 @@ trait RaysTrait {
 
 impl RaysImpl of RaysTrait {
     fn new(position: Vec2, theta: Fixed) -> Rays {
-        let ray_length = FixedTrait::new_unscaled(RAY_LENGTH, false);
+        let ray_length = FixedTrait::new(RAY_LENGTH, false);
 
         let mut rays_theta = ArrayTrait::new();
         // rays_theta.append(theta - FixedTrait::new(DEG_70_IN_RADS, true));

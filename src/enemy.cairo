@@ -4,6 +4,9 @@ use cubit::types::fixed::FixedTrait;
 
 /// Number of enemies to spawn.
 const ENEMIES_NB: u8 = 10;
+
+// For this file, these const's should remain unscaled (?)
+
 /// Height of the grid.
 const GRID_HEIGHT: u128 = 1000;
 // Width of the grid.
