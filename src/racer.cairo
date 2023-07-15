@@ -86,25 +86,18 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
 }
 
 fn filter_positions(vehicle: Vehicle, mut positions: Array<Position>) -> Array<Position> {
-    // For option 1 below
-    // TODO: I think this assumes the orientation of the car? Might need to be a square with edges RAY + HEIGHT
-    let max_horiz_dist = FixedTrait::new(CAR_WIDTH + RAY_LENGTH, false);
-    let max_vert_dist = FixedTrait::new(CAR_HEIGHT + RAY_LENGTH, false);
-
-    // // For option 2 below
-    // let max_dist = FixedTrait::new(CAR_HEIGHT + RAY_LENGTH, false);
-
-    // Will hold near positions' enemy_idx values
+    // Will hold near position values
     let mut near = ArrayTrait::new();
+
+    let max_dist = FixedTrait::new(CAR_HEIGHT + RAY_LENGTH, false);
 
     loop {
         match positions.pop_front() {
             Option::Some(position) => {
                 // Option 1: Box - This may be cheaper than distance calculation in option 2, 
                 // but may include unneeded positions near corners of box, which could be more expensive
-                if (FixedTrait::new(position.x, false) - vehicle.position.x).abs() <= max_horiz_dist
-                    && (FixedTrait::new(position.y, false) - vehicle.position.y)
-                        .abs() <= max_vert_dist {
+                if (FixedTrait::new(position.x, false) - vehicle.position.x).abs() <= max_dist
+                    && (FixedTrait::new(position.y, false) - vehicle.position.y).abs() <= max_dist {
                     near.append(position);
                 }
             // // Option 2: Semi-circle - This may eliminate some positions near corners of box in option 2,
@@ -127,24 +120,24 @@ fn filter_positions(vehicle: Vehicle, mut positions: Array<Position>) -> Array<P
 }
 
 fn closest_position(ray: @Ray, mut positions: Span<Position>) -> Fixed {
-    let mut closest = FixedTrait::new(0, false);
+    let mut closest = FixedTrait::new(0, false); // Should this be non-zero?
 
     loop {
         match positions.pop_front() {
             Option::Some(position) => {
-                let mut edge: usize = 0;
+                let mut edge_idx: usize = 0;
+
+                let vertices = position.vertices();
 
                 // TODO: Only check visible edges
                 loop {
-                    if edge >= 3 {
+                    if edge_idx == 3 {
                         break ();
                     }
 
-                    let vertices = position.vertices();
-
                     // Endpoints of edge
-                    let p2 = vertices.at(edge);
-                    let mut q2_idx = edge + 1;
+                    let p2 = vertices.at(edge_idx);
+                    let mut q2_idx = edge_idx + 1;
                     if q2_idx == 4 {
                         q2_idx = 0;
                     }
@@ -157,7 +150,7 @@ fn closest_position(ray: @Ray, mut positions: Span<Position>) -> Fixed {
                         }
                     }
 
-                    edge += 1;
+                    edge_idx += 1;
                 }
             },
             Option::None(_) => {
@@ -170,10 +163,8 @@ fn closest_position(ray: @Ray, mut positions: Span<Position>) -> Fixed {
 }
 
 fn near_wall(vehicle: Vehicle) -> Wall {
-    // TODO: SCALE
     if vehicle.position.x <= FixedTrait::new(RAY_LENGTH, false) {
         return Wall::Left(());
-    // TODO: SCALE
     } else if vehicle.position.x >= FixedTrait::new(GRID_WIDTH - RAY_LENGTH, false) {
         return Wall::Right(());
     }
@@ -190,7 +181,6 @@ fn distances_to_wall(vehicle: Vehicle, near_wall: Wall, mut rays: Span<Ray>) -> 
             return sensors;
         },
         Wall::Left(()) => FixedTrait::new(0, false),
-        // TODO: SCALE
         Wall::Right(()) => FixedTrait::new(GRID_WIDTH, false),
     };
 
@@ -217,10 +207,10 @@ fn distances_to_wall(vehicle: Vehicle, near_wall: Wall, mut rays: Span<Ray>) -> 
     sensors
 }
 
-fn collision_check(vehicle: Vehicle) -> bool {
+fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) -> bool {
     let vertices = vehicle.vertices();
 
-    // Wall collision check
+    /// Wall collision check
     let wall_collision: bool = match near_wall(vehicle) {
         Wall::None(()) => false,
         Wall::Left(()) => { // not 100% sure of syntax here at end
@@ -273,8 +263,63 @@ fn collision_check(vehicle: Vehicle) -> bool {
     if wall_collision {
         return true;
     }
-// TODO Enemy collision check
 
+    /// Enemy collision check
+    // Get array of only near enemies positions
+    let filtered_enemies = filter_positions(vehicle, enemies);
+
+    // For each vehicle edge...
+    let mut vehicle_edge_idx: usize = 0;
+    loop {
+        if (vehicle_edge_idx == 3) {
+            break ();
+        }
+
+        let mut q1_idx = vehicle_edge_idx + 1;
+        if q1_idx == 4 {
+            q1_idx = 0;
+        }
+        // Endpoints of vehicle edge
+        let p1 = vertices.at(vehicle_edge_idx);
+        let q1 = vertices.at(q1_idx);
+
+        // ..., check for collision with each near enemy
+        loop {
+            match filtered_enemies.pop_front() {
+                Option::Some(position) => {
+                    let mut enemy_edge_idx: usize = 0;
+
+                    let vertices = position.vertices();
+
+                    // For each enemy edge
+                    // TODO: Only check visible edges
+                    loop {
+                        if enemy_edge_idx == 3 {
+                            break ();
+                        }
+
+                        let mut q2_idx = enemy_edge_idx + 1;
+                        if q2_idx == 4 {
+                            q2_idx = 0;
+                        }
+                        // Endpoints of enemy edge
+                        let p2 = vertices.at(enemy_edge_idx);
+                        let q2 = vertices.at(q2_idx);
+
+                        if intersects(p1, q1, p2, q2) {
+                            return true;
+                        }
+                        enemy_edge_idx += 1;
+                    }
+                },
+                Option::None(_) => {
+                    break ();
+                }
+            }
+        };
+        vehicle_edge_idx += 1;
+    }
+    false
 }
 
 
