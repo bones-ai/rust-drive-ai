@@ -5,6 +5,7 @@ use bevy::ecs::system::SystemState;
 use bevy::log;
 use bevy::prelude::*;
 use bevy_tokio_tasks::{TokioTasksPlugin, TokioTasksRuntime};
+use bigdecimal::ToPrimitive;
 use dojo_client::contract::world::WorldContract;
 use starknet::accounts::SingleOwnerAccount;
 use starknet::core::types::{BlockId, BlockTag, FieldElement};
@@ -85,7 +86,7 @@ fn spawn_sync_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Commands)
         let world_address = FieldElement::from_str(configs::WORLD_ADDRESS).unwrap();
         let block_id = BlockId::Tag(BlockTag::Latest);
 
-        // Can it be added as Resource or Component? If yes, we don't need the mpsc channel.
+        // TODO: Can it be added as Resource or Component? If yes, we don't need the mpsc channel.
         let world = WorldContract::new(world_address, &account);
 
         // Components
@@ -96,6 +97,8 @@ fn spawn_sync_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Commands)
         let drive_system = world.system("drive", block_id).await.unwrap();
 
         while let Some(msg) = rx.recv().await {
+            log::info!("Start listening to dojo sync messages");
+
             match msg {
                 DojoSyncMessage::SpawnCars => {
                     let mut dojo_ids = vec![];
@@ -114,7 +117,7 @@ fn spawn_sync_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Commands)
                                 .await;
                             }
                             Err(e) => {
-                                log::error!("{e}");
+                                log::error!("Failed to call spawn_racer system: {e}");
                             }
                         }
                     }
@@ -134,7 +137,7 @@ fn spawn_sync_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Commands)
 
                     for dojo_id in dojo_ids.iter() {
                         if let Err(e) = drive_system.execute(vec![*dojo_id]).await {
-                            log::error!("{e}");
+                            log::error!("Failed to call drive system: {e}");
                         }
                     }
                 }
@@ -153,7 +156,7 @@ fn spawn_sync_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Commands)
 
                     for dojo_id in dojo_ids.iter() {
                         if let Err(e) = drive_system.execute(vec![*dojo_id]).await {
-                            log::error!("{e}");
+                            log::error!("Failed to execute drive system: {e}");
                         }
 
                         match vehicle_component
@@ -162,10 +165,24 @@ fn spawn_sync_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Commands)
                         {
                             Ok(vehicle) => {
                                 // log::info!("{vehicle:#?}");
-                                log::info!("x: {}, y: {}", vehicle[0], vehicle[2]);
+                                log::info!(
+                                    "x: {}, y: {}",
+                                    vehicle[0].to_string().parse::<f32>().unwrap(),
+                                    vehicle[2].to_string().parse::<f32>().unwrap()
+                                );
+                                ctx.run_on_main_thread(move |ctx| {
+                                    let mut state: SystemState<Query<&mut Transform, With<Car>>> =
+                                        SystemState::new(ctx.world);
+                                    let mut query = state.get_mut(ctx.world);
+                                    for mut transform in query.iter_mut() {
+                                        transform.translation.y = configs::WINDOW_HEIGHT / 2.00
+                                            + vehicle[2].to_big_decimal(19).to_f32().unwrap();
+                                    }
+                                })
+                                .await;
                             }
                             Err(e) => {
-                                log::error!("{e}");
+                                log::error!("Failed to query vehicle component: {e}");
                             }
                         }
                     }

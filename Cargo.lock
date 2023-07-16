@@ -1222,6 +1222,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "bigdecimal"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "454bca3db10617b88b566f205ed190aedb0e0e6dd4cad61d3988a72e8c5594cb"
+dependencies = [
+ "autocfg",
+ "libm",
+ "num-bigint",
+ "num-integer",
+ "num-traits 0.2.15",
+]
+
+[[package]]
 name = "bindgen"
 version = "0.64.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5361,7 +5374,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db2cb1d9c0a50380cddab99cb202c6bfb3332728a2769bd0ca2ee80b0b390dd4"
 dependencies = [
  "ark-ff",
- "bigdecimal",
+ "bigdecimal 0.3.1",
  "crypto-bigint",
  "getrandom",
  "hex",
@@ -5430,6 +5443,7 @@ dependencies = [
  "bevy_pancam",
  "bevy_prototype_debug_lines",
  "bevy_rapier2d",
+ "bigdecimal 0.4.1",
  "dojo-client",
  "eyre",
  "rand",

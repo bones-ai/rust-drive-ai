@@ -12,6 +12,7 @@ bevy_pancam = "0.8.0"
 bevy_prototype_debug_lines = "0.10.1"
 bevy_rapier2d = "0.21.0"
 bevy-tokio-tasks = "0.10"
+bigdecimal = "0.4"
 dojo-client = { git = "https://github.com/dojoengine/dojo", rev = "c2aa73ebb3f54c3dfe2fed923d1e5d2e65176c64"}
 eyre = "0.6"
 rand = "0.8.5"

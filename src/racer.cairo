@@ -262,7 +262,7 @@ mod spawn_racer {
 
         let mut calldata = ArrayTrait::new();
         calldata.append(model);
-        // ctx.world.execute('spawn_enemies', calldata.span());
+        ctx.world.execute('spawn_enemies', calldata.span());
 
         return ();
     }

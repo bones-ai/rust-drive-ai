@@ -75,7 +75,8 @@ impl Plugin for CarPlugin {
             .register_type::<Speed>()
             .insert_resource(RayCastSensors::default())
             .add_startup_system(setup)
-            .add_systems((car_render_system, spawn_cars));
+            .add_system(spawn_cars);
+        // .add_systems((car_render_system, spawn_cars));
         // .add_system(collision_events_system)
         // .add_system(sensors_system)
         // .add_system(car_nn_controlled_system.in_schedule(CoreSchedule::FixedUpdate));
@@ -137,14 +138,14 @@ fn setup(mut ray_cast_sensors: ResMut<RayCastSensors>) {
 //     }
 // }
 
-fn car_render_system(mut car_query: Query<&mut Transform, With<Car>>) {
-    for mut transform in car_query.iter_mut() {
-        let movement_direction = transform.rotation * Vec3::Y;
-        let movement_distance = 3.5;
-        let translation_delta = movement_direction * movement_distance;
-        transform.translation += translation_delta;
-    }
-}
+// fn car_render_system(mut car_query: Query<&mut Transform, With<Car>>) {
+//     for mut transform in car_query.iter_mut() {
+//         let movement_direction = transform.rotation * Vec3::Y;
+//         let movement_distance = 3.5;
+//         let translation_delta = movement_direction * movement_distance;
+//         transform.translation += translation_delta;
+//     }
+// }
 
 // fn car_nn_controlled_system(
 //     mut car_query: Query<(&mut Speed, &mut Model, &mut Transform), With<Car>>,
