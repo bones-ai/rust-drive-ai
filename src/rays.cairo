@@ -11,7 +11,7 @@ const DEG_50_IN_RADS: u128 = 16098473553126325695;
 const DEG_30_IN_RADS: u128 = 9658715196994321226;
 const DEG_10_IN_RADS: u128 = 3218956840862316756;
 
-const RAY_LENGTH: u128 = 150;
+const RAY_LENGTH: u128 = 2767011611056432742400; // 150
 
 #[derive(Serde, Drop)]
 struct Rays {
@@ -24,7 +24,20 @@ trait RaysTrait {
 
 impl RaysImpl of RaysTrait {
     fn new(position: Vec2, theta: Fixed) -> Rays {
-        let ray_length = FixedTrait::new_unscaled(RAY_LENGTH, false);
+        // TODO optimization idea, something like 
+        // `sensor_deltas: Array<(Array<(Fixed, Fixed, Vec2), Array<Vec2)>>`
+        // 1) Outer array holds tuple of inner arrays, one for each possible `steer` angle 
+        //    (if in 10 degree increments, or whatever size)
+        // 2) First inner array, for particular `steer` angle, holds tuple of 
+        //    precalculated `cos_theta`, `sin_theta`, and `delta1` values for each sensor. 
+        // 3) Grab array corresponding to current steer value. If 17 possible steer.abs() values (0, 10, … , 160) using:
+        //    `sensor_deltas_idx: usize = (steer.abs() / FixedTrait::new(TEN, false)).into()`
+        //    if steer >= 0, use delta1 values as-is
+        //    else use new_delta1.x = -delta1.x
+        // 4) Second inner array holds precalculated rotated relative vertices for each steer angle
+        //    (`rot_rel_vertex_0` and `rot_rel_vertex_1` in math.cairo)
+
+        let ray_length = FixedTrait::new(RAY_LENGTH, false);
 
         let mut rays_theta = ArrayTrait::new();
         // rays_theta.append(theta - FixedTrait::new(DEG_70_IN_RADS, true));

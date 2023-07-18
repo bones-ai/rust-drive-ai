@@ -1,9 +1,11 @@
-use array::ArrayTrait;
+use array::{ArrayTrait, SpanTrait};
 use cubit::types::vec2::Vec2;
 use cubit::types::fixed::FixedTrait;
+use drive_ai::racer::{CAR_HEIGHT as CAR_HEIGHT_SCALED, CAR_WIDTH as CAR_WIDTH_SCALED};
 
 /// Number of enemies to spawn.
 const ENEMIES_NB: u8 = 10;
+
 /// Height of the grid.
 const GRID_HEIGHT: u128 = 1000;
 // Width of the grid.
@@ -27,23 +29,34 @@ trait PositionTrait {
 
 impl PostionImpl of PositionTrait {
     fn vertices(self: @Position) -> Span<Vec2> {
-        // TODO: Calculate values
         let mut vertices = ArrayTrait::new();
         vertices
             .append(
-                Vec2 { x: FixedTrait::new(*self.x, false), y: FixedTrait::new(*self.y, false) }
+                Vec2 {
+                    x: FixedTrait::new(*self.x + CAR_WIDTH_SCALED, false),
+                    y: FixedTrait::new(*self.y + CAR_HEIGHT_SCALED, false)
+                }
             );
         vertices
             .append(
-                Vec2 { x: FixedTrait::new(*self.x, false), y: FixedTrait::new(*self.y, false) }
+                Vec2 {
+                    x: FixedTrait::new(*self.x - CAR_WIDTH_SCALED, false),
+                    y: FixedTrait::new(*self.y + CAR_HEIGHT_SCALED, false)
+                }
             );
         vertices
             .append(
-                Vec2 { x: FixedTrait::new(*self.x, false), y: FixedTrait::new(*self.y, false) }
+                Vec2 {
+                    x: FixedTrait::new(*self.x - CAR_WIDTH_SCALED, false),
+                    y: FixedTrait::new(*self.y - CAR_HEIGHT_SCALED, false)
+                }
             );
         vertices
             .append(
-                Vec2 { x: FixedTrait::new(*self.x, false), y: FixedTrait::new(*self.y, false) }
+                Vec2 {
+                    x: FixedTrait::new(*self.x + CAR_WIDTH_SCALED, false),
+                    y: FixedTrait::new(*self.y - CAR_HEIGHT_SCALED, false)
+                }
             );
         vertices.span()
     }
@@ -410,5 +423,81 @@ mod tests_move {
             assert(*position[1] == *(@expected_coordinates)[2 * i + 1], 'Wrong position y');
             i += 1;
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use array::{ArrayTrait, SpanTrait};
+    use traits::Into;
+    use debug::PrintTrait;
+
+    use cubit::types::vec2::{Vec2, Vec2Trait};
+    use cubit::types::fixed::{Fixed, FixedTrait, FixedPrint};
+    use cubit::test::helpers::assert_precise;
+
+    use drive_ai::racer::{CAR_HEIGHT as CAR_HEIGHT_SCALED, CAR_WIDTH as CAR_WIDTH_SCALED};
+    use super::{Position, PositionTrait};
+
+    const HUNDRED: u128 = 1844674407370955161600;
+
+    #[test]
+    #[available_gas(2000000)]
+    fn test_vertices() {
+        let position = Position { x: HUNDRED, y: HUNDRED };
+        let vertices = position.vertices();
+
+        assert_precise(
+            *(vertices.at(0).x),
+            (HUNDRED + CAR_WIDTH_SCALED).into(),
+            'invalid vertex_0',
+            Option::None(())
+        );
+        assert_precise(
+            *(vertices.at(0).y),
+            (HUNDRED + CAR_HEIGHT_SCALED).into(),
+            'invalid vertex_0',
+            Option::None(())
+        );
+
+        assert_precise(
+            *(vertices.at(1).x),
+            (HUNDRED - CAR_WIDTH_SCALED).into(),
+            'invalid vertex_1',
+            Option::None(())
+        );
+        assert_precise(
+            *(vertices.at(1).y),
+            (HUNDRED + CAR_HEIGHT_SCALED).into(),
+            'invalid vertex_1',
+            Option::None(())
+        );
+
+        assert_precise(
+            *(vertices.at(2).x),
+            (HUNDRED - CAR_WIDTH_SCALED).into(),
+            'invalid vertex_x2',
+            Option::None(())
+        );
+        assert_precise(
+            *(vertices.at(2).y),
+            (HUNDRED - CAR_HEIGHT_SCALED).into(),
+            'invalid vertex_y2',
+            Option::None(())
+        );
+
+        assert_precise(
+            *(vertices.at(3).x),
+            (HUNDRED + CAR_WIDTH_SCALED).into(),
+            'invalid vertex_3',
+            Option::None(())
+        );
+        assert_precise(
+            *(vertices.at(3).y),
+            (HUNDRED - CAR_HEIGHT_SCALED).into(),
+            'invalid vertex_3',
+            Option::None(())
+        );
     }
 }
