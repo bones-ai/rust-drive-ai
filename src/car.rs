@@ -1,20 +1,14 @@
 use std::f32::consts::PI;
 
-use bevy::{
-    log,
-    math::{vec2, vec3},
-    prelude::*,
-};
-use bevy_prototype_debug_lines::{DebugLines, DebugLinesPlugin};
+use bevy::{log, math::vec3, prelude::*};
+use bevy_prototype_debug_lines::DebugLinesPlugin;
 use bevy_rapier2d::prelude::*;
-use rand::Rng;
+// use rand::Rng;
 use starknet::core::types::FieldElement;
 
+use crate::dojo::SpawnRacersCommand;
+use crate::nn::Net;
 use crate::*;
-use crate::{
-    dojo::{DojoSyncMessage, DojoSyncSender},
-    nn::Net,
-};
 
 pub struct CarPlugin;
 
@@ -85,9 +79,9 @@ impl Plugin for CarPlugin {
 
 pub struct SpawnCars;
 
-fn spawn_cars(mut events: EventReader<SpawnCars>, sender: Res<DojoSyncSender>) {
+fn spawn_cars(mut events: EventReader<SpawnCars>, sender: Res<SpawnRacersCommand>) {
     for _ in events.iter() {
-        if let Err(e) = sender.try_send(DojoSyncMessage::SpawnCars) {
+        if let Err(e) = sender.try_send() {
             log::error!("{e}");
         }
     }
@@ -269,12 +263,12 @@ fn setup(mut ray_cast_sensors: ResMut<RayCastSensors>) {
 
 impl CarBundle {
     pub fn new(asset_server: &AssetServer, dojo_id: FieldElement) -> Self {
-        let mut rng = rand::thread_rng();
-        let rand_x = rng.gen_range(800.0..1100.0);
+        // let mut rng = rand::thread_rng();
+        // let rand_x = rng.gen_range(800.0..1100.0);
 
         Self {
             sprite_bundle: SpriteBundle {
-                transform: Transform::from_xyz(rand_x, WINDOW_HEIGHT / 2.0, 0.0)
+                transform: Transform::from_xyz(WINDOW_WIDTH / 2.00, WINDOW_HEIGHT / 2.0, 0.0)
                     .with_scale(vec3(2.5, 2.5, 1.0)),
                 texture: asset_server.load("agent.png"),
                 ..default()

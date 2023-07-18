@@ -1,15 +1,12 @@
-use bevy::log;
+// use bevy::log;
 use bevy::prelude::*;
-use rand::distributions::WeightedIndex;
-use rand::prelude::Distribution;
-use starknet::core::types::FieldElement;
+// use rand::distributions::WeightedIndex;
+// use rand::prelude::Distribution;
 
 use crate::car::SpawnCars;
-use crate::car::{Car, CarBundle, Fitness, Model};
-use crate::dojo::DojoSyncMessage;
-use crate::dojo::DojoSyncSender;
-use crate::enemy::{spawn_bound_trucks, spawn_enemies, BoundControlTruck, Enemy};
-use crate::nn::Net;
+use crate::car::{Car, Fitness, Model};
+use crate::enemy::{spawn_bound_trucks, BoundControlTruck, Enemy};
+// use crate::nn::Net;
 use crate::*;
 
 pub struct PopulationPlugin;
@@ -17,8 +14,8 @@ pub struct PopulationPlugin;
 impl Plugin for PopulationPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(MaxDistanceTravelled(0.0))
-            .add_startup_system(setup)
-            .add_systems((population_stats_system, generation_reset_system));
+            .add_startup_system(setup);
+        // .add_systems((population_stats_system, generation_reset_system));
     }
 }
 
@@ -50,7 +47,7 @@ fn population_stats_system(
 fn generation_reset_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut settings: ResMut<Settings>,
+    // mut settings: ResMut<Settings>,
     mut sim_stats: ResMut<SimStats>,
     cars_query: Query<(Entity, &Model, &Fitness)>,
     cars_count_query: Query<With<Car>>,
@@ -91,7 +88,7 @@ fn generation_reset_system(
 
     // respawn everything
     // spawn_enemies(&mut commands, &asset_server);
-    spawn_bound_trucks(&mut commands, &asset_server);
+    // spawn_bound_trucks(&mut commands, &asset_server);
     // spawn_cars(
     //     &mut commands,
     //     &asset_server,
@@ -123,22 +120,22 @@ fn generation_reset_system(
 //     }
 // }
 
-fn create_gene_pool(values: Vec<f32>) -> (f32, WeightedIndex<f32>) {
-    let mut max_fitness = 0.0;
-    let mut weights = Vec::new();
+// fn create_gene_pool(values: Vec<f32>) -> (f32, WeightedIndex<f32>) {
+//     let mut max_fitness = 0.0;
+//     let mut weights = Vec::new();
 
-    for v in values.iter() {
-        if *v > max_fitness {
-            max_fitness = *v;
-        }
-        weights.push(*v);
-    }
+//     for v in values.iter() {
+//         if *v > max_fitness {
+//             max_fitness = *v;
+//         }
+//         weights.push(*v);
+//     }
 
-    (
-        max_fitness,
-        WeightedIndex::new(&weights).expect("Failed to generate gene pool"),
-    )
-}
+//     (
+//         max_fitness,
+//         WeightedIndex::new(&weights).expect("Failed to generate gene pool"),
+//     )
+// }
 
 fn calc_fitness(transform: &Transform) -> f32 {
     let y = transform.translation.y;

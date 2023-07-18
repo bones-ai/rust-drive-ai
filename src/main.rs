@@ -1,18 +1,13 @@
 use bevy::{math::vec3, prelude::*};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_pancam::{PanCam, PanCamPlugin};
-use bevy_rapier2d::prelude::{
-    Collider, NoUserData, RapierConfiguration, RapierPhysicsPlugin, RigidBody,
-};
+use bevy_rapier2d::prelude::{NoUserData, RapierConfiguration, RapierPhysicsPlugin};
+use steering::*;
 use steering::{
     car::{Car, CarPlugin},
     dojo::DojoPlugin,
     gui::GuiPlugin,
     population::PopulationPlugin,
-};
-use steering::{
-    enemy::{spawn_bound_trucks, EnemyPlugin},
-    *,
 };
 
 fn main() {
@@ -41,7 +36,7 @@ fn main() {
         .add_plugin(CarPlugin)
         // .add_plugin(EnemyPlugin)
         .add_plugin(PopulationPlugin)
-        .add_plugin(GuiPlugin)
+        // .add_plugin(GuiPlugin)
         .add_plugin(DojoPlugin)
         // .add_plugin(RapierDebugRenderPlugin::default())
         .insert_resource(ClearColor(Color::rgb_u8(36, 36, 36)))
@@ -49,8 +44,8 @@ fn main() {
         // .insert_resource(Msaa::Off)
         .add_startup_system(setup)
         .add_system(bevy::window::close_on_esc)
-        .add_system(camera_follow_system)
-        .add_system(settings_system)
+        // .add_system(camera_follow_system)
+        // .add_system(settings_system)
         .run();
 }
 
@@ -69,26 +64,27 @@ fn setup(
         .insert(PanCam::default());
 
     spawn_roads(&mut commands, &asset_server);
-    spawn_bound_trucks(&mut commands, &asset_server);
+    // spawn_bound_trucks(&mut commands, &asset_server);
 }
 
-fn camera_follow_system(
-    settings: Res<Settings>,
-    max_distance_travelled: Res<MaxDistanceTravelled>,
-    mut cam_query: Query<(&Camera, &mut Transform), Without<Car>>,
-) {
-    let (_, mut cam_transform) = cam_query.get_single_mut().unwrap();
-    if settings.is_camera_follow {
-        cam_transform.translation = cam_transform.translation.lerp(
-            vec3(cam_transform.translation.x, max_distance_travelled.0, 0.0),
-            0.05,
-        );
-    }
-}
+// fn camera_follow_system(
+//     settings: Res<Settings>,
+//     max_distance_travelled: Res<MaxDistanceTravelled>,
+//     mut cam_query: Query<(&Camera, &mut Transform), Without<Car>>,
+// ) {
+//     let (_, mut cam_transform) = cam_query.get_single_mut().unwrap();
+//     if settings.is_camera_follow {
+//         cam_transform.translation = cam_transform.translation.lerp(
+//             vec3(cam_transform.translation.x, max_distance_travelled.0, 0.0),
+//             0.05,
+//         );
+//     }
+// }
 
 fn spawn_roads(commands: &mut Commands, asset_server: &AssetServer) {
     // Road
-    let rx = WINDOW_WIDTH / 2.0 - 30.0;
+    // let rx = WINDOW_WIDTH / 2.0 - 30.0;
+    let rx = ROAD_SPRITE_W / 2.0 * SPRITE_SCALE_FACTOR;
     let mut ry = ROAD_SPRITE_H / 2.0 * SPRITE_SCALE_FACTOR;
     for _ in 0..NUM_ROAD_TILES {
         commands.spawn(SpriteBundle {
@@ -109,63 +105,63 @@ fn spawn_roads(commands: &mut Commands, asset_server: &AssetServer) {
         ..default()
     });
 
-    // Road colliders
-    // left
-    let ry = 5.0 * ROAD_SPRITE_H * SPRITE_SCALE_FACTOR;
-    let rx_min = ROAD_SPRITE_W / 2.0 * SPRITE_SCALE_FACTOR + 238.0;
-    commands.spawn((
-        SpriteBundle {
-            transform: Transform::from_xyz(rx_min, ry, 0.0).with_scale(vec3(0.5, 0.5, 1.0)),
-            ..default()
-        },
-        RigidBody::Fixed,
-        Collider::cuboid(
-            5.0,
-            ROAD_SPRITE_H * SPRITE_SCALE_FACTOR * NUM_ROAD_TILES as f32 * 5.0,
-        ),
-    ));
-    // right
-    let rx_max = ROAD_SPRITE_W * SPRITE_SCALE_FACTOR + 248.0;
-    commands.spawn((
-        SpriteBundle {
-            transform: Transform::from_xyz(rx_max, ry, 0.0).with_scale(vec3(0.5, 0.5, 1.0)),
-            ..default()
-        },
-        RigidBody::Fixed,
-        Collider::cuboid(
-            5.0,
-            ROAD_SPRITE_H * SPRITE_SCALE_FACTOR * NUM_ROAD_TILES as f32 * 5.0,
-        ),
-    ));
-    // top
-    commands.spawn((
-        SpriteBundle {
-            transform: Transform::from_xyz(600.0, road_end_y, 0.0).with_scale(vec3(0.5, 0.5, 1.0)),
-            ..default()
-        },
-        RigidBody::Fixed,
-        Collider::cuboid(500.0 * SPRITE_SCALE_FACTOR, 10.0),
-    ));
+    // // Road colliders
+    // // left
+    // let ry = 5.0 * ROAD_SPRITE_H * SPRITE_SCALE_FACTOR;
+    // let rx_min = ROAD_SPRITE_W / 2.0 * SPRITE_SCALE_FACTOR + 238.0;
+    // commands.spawn((
+    //     SpriteBundle {
+    //         transform: Transform::from_xyz(rx_min, ry, 0.0).with_scale(vec3(0.5, 0.5, 1.0)),
+    //         ..default()
+    //     },
+    //     RigidBody::Fixed,
+    //     Collider::cuboid(
+    //         5.0,
+    //         ROAD_SPRITE_H * SPRITE_SCALE_FACTOR * NUM_ROAD_TILES as f32 * 5.0,
+    //     ),
+    // ));
+    // // right
+    // let rx_max = ROAD_SPRITE_W * SPRITE_SCALE_FACTOR + 248.0;
+    // commands.spawn((
+    //     SpriteBundle {
+    //         transform: Transform::from_xyz(rx_max, ry, 0.0).with_scale(vec3(0.5, 0.5, 1.0)),
+    //         ..default()
+    //     },
+    //     RigidBody::Fixed,
+    //     Collider::cuboid(
+    //         5.0,
+    //         ROAD_SPRITE_H * SPRITE_SCALE_FACTOR * NUM_ROAD_TILES as f32 * 5.0,
+    //     ),
+    // ));
+    // // top
+    // commands.spawn((
+    //     SpriteBundle {
+    //         transform: Transform::from_xyz(600.0, road_end_y, 0.0).with_scale(vec3(0.5, 0.5, 1.0)),
+    //         ..default()
+    //     },
+    //     RigidBody::Fixed,
+    //     Collider::cuboid(500.0 * SPRITE_SCALE_FACTOR, 10.0),
+    // ));
 }
 
-fn settings_system(
-    mut commands: Commands,
-    mut settings: ResMut<Settings>,
-    mut sim_stats: ResMut<SimStats>,
-    car_query: Query<Entity, With<Car>>,
-) {
-    if settings.start_next_generation {
-        settings.start_next_generation = false;
-        car_query.iter().for_each(|c| {
-            commands.entity(c).remove::<Car>();
-        });
-    }
-    if settings.restart_sim {
-        // force restart
-        car_query.iter().for_each(|c| {
-            commands.entity(c).remove::<Car>();
-        });
-        *sim_stats = SimStats::default();
-        sim_stats.generation_count = 0;
-    }
-}
+// fn settings_system(
+//     mut commands: Commands,
+//     mut settings: ResMut<Settings>,
+//     mut sim_stats: ResMut<SimStats>,
+//     car_query: Query<Entity, With<Car>>,
+// ) {
+//     if settings.start_next_generation {
+//         settings.start_next_generation = false;
+//         car_query.iter().for_each(|c| {
+//             commands.entity(c).remove::<Car>();
+//         });
+//     }
+//     if settings.restart_sim {
+//         // force restart
+//         car_query.iter().for_each(|c| {
+//             commands.entity(c).remove::<Car>();
+//         });
+//         *sim_stats = SimStats::default();
+//         sim_stats.generation_count = 0;
+//     }
+// }
