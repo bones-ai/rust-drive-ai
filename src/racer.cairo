@@ -36,6 +36,7 @@ enum Wall {
 
 const GRID_HEIGHT: u128 = 18446744073709551616000; // 1000
 const GRID_WIDTH: u128 = 7378697629483820646400; // 400
+const HALF_GRID_WIDTH: u128 = 3689348814741910323200; // 200
 const CAR_HEIGHT: u128 = 590295810358705651712; // 32
 const CAR_WIDTH: u128 = 295147905179352825856; // 16
 
@@ -344,12 +345,14 @@ mod spawn_racer {
     use dojo::world::Context;
     use drive_ai::Vehicle;
 
-    use super::Racer;
+    use super::{Racer, HALF_GRID_WIDTH};
 
     const FIFTY: u128 = 922337203685477580800;
 
     fn execute(ctx: Context, model: felt252) {
-        let position = Vec2Trait::new(FixedTrait::new(FIFTY, false), FixedTrait::new(0, false));
+        let position = Vec2Trait::new(
+            FixedTrait::new(HALF_GRID_WIDTH, false), FixedTrait::new(0, false)
+        );
         set !(
             ctx.world,
             model.into(),
@@ -399,13 +402,11 @@ mod drive {
 
         // 1. Compute sensors, reverts if there is a collision (game over)
         let sensors = compute_sensors(vehicle, enemies);
-
         // 2. Run model forward pass
         let mut sensor_calldata = ArrayTrait::new();
         sensors.serialize(ref sensor_calldata);
         let mut controls = ctx.world.execute('model', sensor_calldata.span());
         let controls = serde::Serde::<Controls>::deserialize(ref controls).unwrap();
-
         // 3. Update car position
         vehicle.control(controls);
         vehicle.drive();
@@ -444,10 +445,17 @@ mod tests {
     const TEN: u128 = 184467440737095516160;
     const HUNDRED: u128 = 1844674407370955161600;
 
-    // TODO
     #[test]
     #[available_gas(20000000)]
-    fn test_compute_sensors() {}
+    fn test_compute_sensors() {
+        let vehicle = Vehicle {
+            position: Vec2Trait::new(
+                FixedTrait::new(CAR_WIDTH, false), FixedTrait::new(TEN, false)
+            ),
+            steer: FixedTrait::new(0, false),
+            speed: FixedTrait::new(0, false)
+        };
+    }
 
     // TODO
     #[test]

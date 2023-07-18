@@ -11,6 +11,8 @@ const GRID_HEIGHT: u128 = 1000;
 // Width of the grid.
 const GRID_WIDTH: u128 = 400;
 
+const HALF_GRID_WIDTH: u128 = 200;
+
 const CAR_HEIGHT: u128 = 32;
 const CAR_WIDTH: u128 = 16;
 const CAR_VELOCITY: u128 = 50;
@@ -33,29 +35,29 @@ impl PostionImpl of PositionTrait {
         vertices
             .append(
                 Vec2 {
-                    x: FixedTrait::new(*self.x + CAR_WIDTH_SCALED, false),
-                    y: FixedTrait::new(*self.y + CAR_HEIGHT_SCALED, false)
+                    x: FixedTrait::new_unscaled(*self.x + CAR_WIDTH, false),
+                    y: FixedTrait::new_unscaled(*self.y + CAR_HEIGHT, false)
                 }
             );
         vertices
             .append(
                 Vec2 {
-                    x: FixedTrait::new(*self.x - CAR_WIDTH_SCALED, false),
-                    y: FixedTrait::new(*self.y + CAR_HEIGHT_SCALED, false)
+                    x: FixedTrait::new_unscaled(*self.x - CAR_WIDTH, false),
+                    y: FixedTrait::new_unscaled(*self.y + CAR_HEIGHT, false)
                 }
             );
         vertices
             .append(
                 Vec2 {
-                    x: FixedTrait::new(*self.x - CAR_WIDTH_SCALED, false),
-                    y: FixedTrait::new(*self.y - CAR_HEIGHT_SCALED, false)
+                    x: FixedTrait::new_unscaled(*self.x - CAR_WIDTH, false),
+                    y: FixedTrait::new_unscaled(*self.y - CAR_HEIGHT, false)
                 }
             );
         vertices
             .append(
                 Vec2 {
-                    x: FixedTrait::new(*self.x + CAR_WIDTH_SCALED, false),
-                    y: FixedTrait::new(*self.y - CAR_HEIGHT_SCALED, false)
+                    x: FixedTrait::new_unscaled(*self.x + CAR_WIDTH, false),
+                    y: FixedTrait::new_unscaled(*self.y - CAR_HEIGHT, false)
                 }
             );
         vertices.span()
@@ -445,7 +447,7 @@ mod tests {
     #[test]
     #[available_gas(2000000)]
     fn test_vertices() {
-        let position = Position { x: HUNDRED, y: HUNDRED };
+        let position = Position { x: 100, y: 100 };
         let vertices = position.vertices();
 
         assert_precise(
