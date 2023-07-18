@@ -18,14 +18,18 @@ Here's the entire timelapse of the AI learning to drive
     git clone git@github.com:bones-ai/rust-drive-ai.git
     cd rust-drive-ai
     ```
-- Run the simulation in the browser
-    ``` 
-    cargo run --target wasm32-unknown-unknown
+<!-- - Run the simulation in the browser -->
+<!--     ``` --> 
+<!--     cargo run --target wasm32-unknown-unknown -->
+<!--     ``` -->
+<!-- - Build the simulation for distribution -->
+<!--     ``` -->
+<!--     cargo build --release --target wasm32-unknown-unknown -->
+<!--     wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/release/steering.wasm -->
+<!--     ``` -->
+- Run the simulation
     ```
-- Build the simulation for distribution
-    ```
-    cargo build --release --target wasm32-unknown-unknown
-    wasm-bindgen --out-dir ./out/ --target web ./target/wasm32-unknown-unknown/release/steering.wasm
+    cargo run
     ```
 ## Configurations
 - The project config file is located at `src/configs.rs`

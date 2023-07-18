@@ -1,5 +1,6 @@
 pub mod car;
 pub mod configs;
+pub mod dojo;
 pub mod enemy;
 pub mod gui;
 pub mod nn;

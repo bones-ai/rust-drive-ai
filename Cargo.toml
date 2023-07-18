@@ -11,7 +11,14 @@ bevy-inspector-egui = "0.18.3"
 bevy_pancam = "0.8.0"
 bevy_prototype_debug_lines = "0.10.1"
 bevy_rapier2d = "0.21.0"
+bevy-tokio-tasks = "0.10"
+bigdecimal = "0.4"
+dojo-client = { git = "https://github.com/dojoengine/dojo", rev = "187a12e74ad1020d76a86a59315b55f9fb08891e" }
+eyre = "0.6"
 rand = "0.8.5"
+starknet = "0.4.0"
+tokio = { version = "1", features = ["sync"] }
+url = "2.2.2"
 
 [workspace]
 resolver = "2" # Important! wgpu/Bevy needs this!

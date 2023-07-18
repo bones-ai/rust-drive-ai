@@ -251,7 +251,8 @@ mod spawn_racer {
             (
                 Racer {
                     driver: ctx.origin, model
-                    }, Vehicle {
+                },
+                Vehicle {
                     position,
                     steer: FixedTrait::new_unscaled(0_u128, false),
                     speed: FixedTrait::new_unscaled(50_u128, false),
@@ -276,8 +277,10 @@ mod drive {
     use drive_ai::vehicle::{Controls, Vehicle, VehicleTrait};
     use drive_ai::enemy::{Position, ENEMIES_NB};
     use super::{Racer, Sensors, compute_sensors};
+    use debug::PrintTrait;
 
     fn execute(ctx: Context, model: felt252) {
+        'Initialize'.print();
         let mut vehicle = get !(ctx.world, model.into(), Vehicle);
 
         let mut enemies = ArrayTrait::<Position>::new();
@@ -292,15 +295,18 @@ mod drive {
             i += 1;
         }
 
+        '1. Compute sensors'.print();
         // 1. Compute sensors, reverts if there is a collision (game over)
         let sensors = compute_sensors(vehicle, enemies);
 
+        '2. Run model forward pass'.print();
         // 2. Run model forward pass
         let mut sensor_calldata = ArrayTrait::new();
         sensors.serialize(ref sensor_calldata);
-        let mut controls = ctx.world.execute(model, sensor_calldata.span());
+        let mut controls = ctx.world.execute('model', sensor_calldata.span());
         let controls = serde::Serde::<Controls>::deserialize(ref controls).unwrap();
 
+        '3. Update car position'.print();
         // 3. Update car position
         vehicle.control(controls);
         vehicle.drive();
@@ -310,12 +316,13 @@ mod drive {
             (Vehicle { position: vehicle.position, steer: vehicle.steer, speed: vehicle.speed })
         );
 
+        '4. Update enemeie positions'.print();
         // 4. Move enemeies to updated positions
         // TODO: This retrieves enemies again internally, we should
         // only read them once (pass them in here?)
         let mut calldata = ArrayTrait::new();
         calldata.append(model);
-        ctx.world.execute('move_enemies', calldata.span());
+        // ctx.world.execute('move_enemies', calldata.span());
     }
 }
 

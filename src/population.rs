@@ -1,25 +1,27 @@
+// use bevy::log;
 use bevy::prelude::*;
-use rand::distributions::WeightedIndex;
-use rand::prelude::Distribution;
+// use rand::distributions::WeightedIndex;
+// use rand::prelude::Distribution;
 
-use crate::car::{Car, CarBundle, Fitness, Model};
-use crate::enemy::{spawn_bound_trucks, spawn_enemies, BoundControlTruck, Enemy};
-use crate::nn::Net;
+use crate::car::SpawnCars;
+use crate::car::{Car, Fitness, Model};
+use crate::enemy::{spawn_bound_trucks, BoundControlTruck, Enemy};
+// use crate::nn::Net;
 use crate::*;
 
 pub struct PopulationPlugin;
 
 impl Plugin for PopulationPlugin {
-    fn build(&self, app: &mut bevy::prelude::App) {
+    fn build(&self, app: &mut App) {
         app.insert_resource(MaxDistanceTravelled(0.0))
-            .add_startup_system(setup)
-            .add_system(population_stats_system)
-            .add_system(generation_reset_system);
+            .add_startup_system(setup);
+        // .add_systems((population_stats_system, generation_reset_system));
     }
 }
 
-fn setup(mut commands: Commands, mut settings: ResMut<Settings>, asset_server: Res<AssetServer>) {
-    spawn_cars(&mut commands, &asset_server, &mut settings, None);
+fn setup(mut spawn_cars: EventWriter<SpawnCars>) {
+    //     spawn_cars(&mut commands, &asset_server, &mut settings, None);
+    spawn_cars.send(SpawnCars);
 }
 
 fn population_stats_system(
@@ -45,7 +47,7 @@ fn population_stats_system(
 fn generation_reset_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut settings: ResMut<Settings>,
+    // mut settings: ResMut<Settings>,
     mut sim_stats: ResMut<SimStats>,
     cars_query: Query<(Entity, &Model, &Fitness)>,
     cars_count_query: Query<With<Car>>,
@@ -69,69 +71,71 @@ fn generation_reset_system(
         commands.entity(e).despawn();
     }
 
-    let (max_fitness, gene_pool) = create_gene_pool(fitnesses);
-    let mut rng = rand::thread_rng();
-    let mut new_brains = Vec::new();
+    // let (max_fitness, gene_pool) = create_gene_pool(fitnesses);
+    // let mut rng = rand::thread_rng();
+    // let mut new_brains = Vec::new();
 
-    for _ in 0..NUM_AI_CARS {
-        let brain_idx = gene_pool.sample(&mut rng);
-        let mut rand_brain = old_brains[brain_idx].clone();
-        rand_brain.mutate();
-        new_brains.push(rand_brain);
-    }
+    // for _ in 0..NUM_AI_CARS {
+    //     let brain_idx = gene_pool.sample(&mut rng);
+    //     let mut rand_brain = old_brains[brain_idx].clone();
+    //     rand_brain.mutate();
+    //     new_brains.push(rand_brain);
+    // }
 
     // update stats
     sim_stats.generation_count += 1;
-    sim_stats.fitness.push(max_fitness);
+    // sim_stats.fitness.push(max_fitness);
 
     // respawn everything
-    spawn_enemies(&mut commands, &asset_server);
-    spawn_bound_trucks(&mut commands, &asset_server);
-    spawn_cars(
-        &mut commands,
-        &asset_server,
-        &mut settings,
-        Some(new_brains),
-    );
+    // spawn_enemies(&mut commands, &asset_server);
+    // spawn_bound_trucks(&mut commands, &asset_server);
+    // spawn_cars(
+    //     &mut commands,
+    //     &asset_server,
+    //     &mut settings,
+    //     Some(new_brains),
+    // );
 }
 
-fn spawn_cars(
-    commands: &mut Commands,
-    asset_server: &AssetServer,
-    settings: &mut Settings,
-    models: Option<Vec<Net>>,
-) {
-    let models = models.unwrap_or(Vec::new());
-    let is_new_nn = models.is_empty() || settings.restart_sim;
-    settings.restart_sim = false;
+// fn spawn_cars(
+//     commands: &mut Commands,
+//     asset_server: &AssetServer,
+//     settings: &mut Settings,
+//     models: Option<Vec<Net>>,
+// ) {
+//     let models = models.unwrap_or(Vec::new());
+//     let is_new_nn = models.is_empty() || settings.restart_sim;
+//     settings.restart_sim = false;
 
-    for i in 0..NUM_AI_CARS {
-        match is_new_nn {
-            true => commands.spawn(CarBundle::new(asset_server)),
-            false => commands.spawn(CarBundle::with_model(
-                asset_server,
-                &models.get(i as usize).unwrap(),
-            )),
-        };
-    }
-}
+//     for i in 0..NUM_AI_CARS {
+//         let dojo_id = FieldElement::from_dec_str(&i.to_string()).unwrap();
 
-fn create_gene_pool(values: Vec<f32>) -> (f32, WeightedIndex<f32>) {
-    let mut max_fitness = 0.0;
-    let mut weights = Vec::new();
+//         match is_new_nn {
+//             true => commands.spawn(CarBundle::new(asset_server, dojo_id)),
+//             false => commands.spawn(CarBundle::with_model(
+//                 asset_server,
+//                 &models.get(i as usize).unwrap(),
+//             )),
+//         };
+//     }
+// }
 
-    for v in values.iter() {
-        if *v > max_fitness {
-            max_fitness = *v;
-        }
-        weights.push(*v);
-    }
+// fn create_gene_pool(values: Vec<f32>) -> (f32, WeightedIndex<f32>) {
+//     let mut max_fitness = 0.0;
+//     let mut weights = Vec::new();
 
-    (
-        max_fitness,
-        WeightedIndex::new(&weights).expect("Failed to generate gene pool"),
-    )
-}
+//     for v in values.iter() {
+//         if *v > max_fitness {
+//             max_fitness = *v;
+//         }
+//         weights.push(*v);
+//     }
+
+//     (
+//         max_fitness,
+//         WeightedIndex::new(&weights).expect("Failed to generate gene pool"),
+//     )
+// }
 
 fn calc_fitness(transform: &Transform) -> f32 {
     let y = transform.translation.y;
