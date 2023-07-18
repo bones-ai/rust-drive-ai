@@ -5465,6 +5465,8 @@ dependencies = [
  "dojo-client",
  "eyre",
  "rand",
+ "serde",
+ "serde_json",
  "starknet",
  "tokio",
  "url",
