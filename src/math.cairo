@@ -141,9 +141,9 @@ mod tests {
 
         let b = rotate(a, sin_theta, cos_theta);
 
-        // x: ~-0.13397459621556135324, y: ~+2.2320508075688772935
-        assert_precise(b.x, -2471395088767036514, 'invalid rotate x', Option::None(()));
-        assert_precise(b.y, 41174070006739806010, 'invalid rotate y', Option::None(()));
+        // x: ~1.8660254, y: ~1.2320508
+        assert_precise(b.x, 34421948996604255568, 'invalid rotate x', Option::None(()));
+        assert_precise(b.y, 22727230956451402011, 'invalid rotate y', Option::None(()));
     }
 
     #[test]

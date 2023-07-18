@@ -47,14 +47,14 @@ impl PostionImpl of PositionTrait {
         vertices
             .append(
                 Vec2 {
-                    x: FixedTrait::new(*self.x - CAR_WIDTH, false),
+                    x: FixedTrait::new(*self.x - CAR_WIDTH_SCALED, false),
                     y: FixedTrait::new(*self.y - CAR_HEIGHT_SCALED, false)
                 }
             );
         vertices
             .append(
                 Vec2 {
-                    x: FixedTrait::new(*self.x + CAR_WIDTH, false),
+                    x: FixedTrait::new(*self.x + CAR_WIDTH_SCALED, false),
                     y: FixedTrait::new(*self.y - CAR_HEIGHT_SCALED, false)
                 }
             );
@@ -438,14 +438,15 @@ mod tests {
     use cubit::test::helpers::assert_precise;
 
     use drive_ai::racer::{CAR_HEIGHT as CAR_HEIGHT_SCALED, CAR_WIDTH as CAR_WIDTH_SCALED};
-    use super::Position;
+    use super::{Position, PositionTrait};
 
     const HUNDRED: u128 = 1844674407370955161600;
 
+    #[test]
     #[available_gas(2000000)]
     fn test_vertices() {
         let position = Position { x: HUNDRED, y: HUNDRED };
-        let vertices = position.vertices;
+        let vertices = position.vertices();
 
         assert_precise(
             *(vertices.at(0).x),
@@ -476,13 +477,13 @@ mod tests {
         assert_precise(
             *(vertices.at(2).x),
             (HUNDRED - CAR_WIDTH_SCALED).into(),
-            'invalid vertex_2',
+            'invalid vertex_x2',
             Option::None(())
         );
         assert_precise(
             *(vertices.at(2).y),
             (HUNDRED - CAR_HEIGHT_SCALED).into(),
-            'invalid vertex_2',
+            'invalid vertex_y2',
             Option::None(())
         );
 

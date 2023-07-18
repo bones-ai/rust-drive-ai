@@ -36,8 +36,8 @@ enum Wall {
 
 const GRID_HEIGHT: u128 = 18446744073709551616000; // 1000
 const GRID_WIDTH: u128 = 7378697629483820646400; // 400
-const CAR_HEIGHT: u128 = 590295810358705651712; //32
-const CAR_WIDTH: u128 = 295147905179352825856; //16
+const CAR_HEIGHT: u128 = 590295810358705651712; // 32
+const CAR_WIDTH: u128 = 295147905179352825856; // 16
 
 fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
     let ray_segments = RaysTrait::new(vehicle.position, vehicle.steer).segments;
@@ -222,8 +222,8 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) -> bool {
                 theta: vehicle.steer,
                 cos_theta: cos_theta,
                 sin_theta: sin_theta,
-                p: vertices.at(1),
-                q: vertices.at(2),
+                p: *vertices.at(1),
+                q: *vertices.at(2),
             };
             let p2 = Vec2 { x: FixedTrait::new(0, false), y: FixedTrait::new(0, false) };
             let q2 = Vec2 { x: FixedTrait::new(0, false), y: FixedTrait::new(GRID_HEIGHT, false) };
@@ -243,8 +243,8 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) -> bool {
                 theta: vehicle.steer,
                 cos_theta: cos_theta,
                 sin_theta: sin_theta,
-                p: vertices.at(3),
-                q: vertices.at(0),
+                p: *vertices.at(3),
+                q: *vertices.at(0),
             };
 
             let p2 = Vec2 { x: FixedTrait::new(GRID_WIDTH, false), y: FixedTrait::new(0, false) };
@@ -266,7 +266,7 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) -> bool {
 
     /// Enemy collision check
     // Get array of only near enemies positions
-    let filtered_enemies = filter_positions(vehicle, enemies);
+    let mut filtered_enemies = filter_positions(vehicle, enemies);
 
     // For each vehicle edge...
     let mut vehicle_edge_idx: usize = 0;
@@ -302,23 +302,27 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) -> bool {
                         if q2_idx == 4 {
                             q2_idx = 0;
                         }
+
                         // Endpoints of enemy edge
                         let p2 = vertices.at(enemy_edge_idx);
                         let q2 = vertices.at(q2_idx);
 
-                        if intersects(p1, q1, p2, q2) {
-                            return true;
+                        if intersects(*p1, *q1, *p2, *q2) {
+                            // return true;
+                            break ();
                         }
+
                         enemy_edge_idx += 1;
                     }
                 },
                 Option::None(_) => {
                     break ();
                 }
-            }
+            };
         };
         vehicle_edge_idx += 1;
-    }
+    };
+
     false
 }
 
@@ -425,7 +429,7 @@ mod tests {
     use drive_ai::rays::{RAY_LENGTH};
     use super::{
         compute_sensors, filter_positions, closest_position, near_wall, distances_to_wall,
-        collision_check
+        collision_check, Wall
     };
     use super::{CAR_WIDTH, GRID_WIDTH};
 
@@ -459,17 +463,18 @@ mod tests {
             speed: FixedTrait::new(0, false)
         };
         let left_wall = near_wall(vehicle_near_left_wall);
-        assert(left_wall == Wall::Left, 'invalid near left wall');
+        assert(left_wall == Wall::Left(()), 'invalid near left wall');
 
         let vehicle_near_no_wall = Vehicle {
             position: Vec2Trait::new(
-                FixedTrait::new(GRID_WIDTH / TWO, false), FixedTrait::new(TEN, false)
+                FixedTrait::new(GRID_WIDTH, false) / FixedTrait::new(TWO, false),
+                FixedTrait::new(TEN, false)
             ),
             steer: FixedTrait::new(0, false),
             speed: FixedTrait::new(0, false)
         };
         let no_wall = near_wall(vehicle_near_no_wall);
-        assert(no_wall == Wall::None, 'invalid near no wall');
+        assert(no_wall == Wall::None(()), 'invalid near no wall');
 
         let vehicle_near_right_wall = Vehicle {
             position: Vec2Trait::new(
@@ -479,7 +484,7 @@ mod tests {
             speed: FixedTrait::new(0, false)
         };
         let right_wall = near_wall(vehicle_near_right_wall);
-        assert(right_wall == Wall::Right, 'invalid near right wall');
+        assert(right_wall == Wall::Right(()), 'invalid near right wall');
     }
 
     // TODO
