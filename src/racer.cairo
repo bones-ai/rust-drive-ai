@@ -6,7 +6,7 @@ use starknet::ContractAddress;
 use drive_ai::{Vehicle, VehicleTrait};
 use drive_ai::enemy::{Position, PositionTrait};
 use drive_ai::math::{intersects};
-use drive_ai::rays::{RaysTrait, Rays, Ray, RayTrait, RAY_LENGTH};
+use drive_ai::rays::{RaysTrait, Rays, Ray, RayTrait, NUM_RAYS, RAY_LENGTH};
 use array::{ArrayTrait, SpanTrait};
 
 use orion::operators::tensor::core::{Tensor, TensorTrait, ExtraParams};
@@ -44,7 +44,7 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
 
     let filter_dist = FixedTrait::new(CAR_WIDTH + RAY_LENGTH, false); // Is this used?
 
-    let wall_sensors = match near_wall(vehicle) {
+    let mut wall_sensors = match near_wall(vehicle) {
         Wall::None(()) => {
             ArrayTrait::<Fixed>::new()
         },
@@ -62,7 +62,7 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
     let mut enemy_sensors = ArrayTrait::<Fixed>::new();
     let mut ray_idx = 0;
     loop {
-        if (ray_idx == 5) {
+        if (ray_idx == NUM_RAYS) {
             break ();
         }
 
@@ -71,16 +71,40 @@ fn compute_sensors(vehicle: Vehicle, mut enemies: Array<Position>) -> Sensors {
         ray_idx += 1;
     };
 
-    // TODO: zip wall_sensors and enemy_sensors
+    let mut sensors = ArrayTrait::<orion_fp::FixedType>::new();
+
+    let mut idx = 0;
+    if wall_sensors.len() > 0 {
+        loop {
+            if idx == NUM_RAYS {
+                break ();
+            }
+
+            let wall_sensor = *wall_sensors.at(idx);
+            let enemy_sensor = *enemy_sensors.at(idx);
+
+            if wall_sensor < enemy_sensor {
+                sensors.append(orion_fp::FixedTrait::new(wall_sensor.mag, false));
+            } else {
+                sensors.append(orion_fp::FixedTrait::new(enemy_sensor.mag, false));
+            };
+
+            idx += 1;
+        }
+    } else {
+        loop {
+            if idx == NUM_RAYS {
+                break ();
+            }
+
+            sensors.append(orion_fp::FixedTrait::new(*enemy_sensors.at(idx).mag, false));
+
+            idx += 1;
+        }
+    }
 
     let mut shape = ArrayTrait::<usize>::new();
     shape.append(5);
-    let mut sensors = ArrayTrait::<orion_fp::FixedType>::new();
-    sensors.append(orion_fp::FixedTrait::new(0, false));
-    sensors.append(orion_fp::FixedTrait::new(0, false));
-    sensors.append(orion_fp::FixedTrait::new(0, false));
-    sensors.append(orion_fp::FixedTrait::new(0, false));
-    sensors.append(orion_fp::FixedTrait::new(0, false));
     let extra = Option::<ExtraParams>::None(());
     Sensors { rays: TensorTrait::new(shape.span(), sensors.span(), extra) }
 }
@@ -207,12 +231,12 @@ fn distances_to_wall(vehicle: Vehicle, near_wall: Wall, mut rays: Span<Ray>) -> 
     sensors
 }
 
-fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) -> bool {
+fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) {
     let vertices = vehicle.vertices();
 
     /// Wall collision check
-    let wall_collision: bool = match near_wall(vehicle) {
-        Wall::None(()) => false,
+    match near_wall(vehicle) {
+        Wall::None(()) => {},
         Wall::Left(()) => { // not 100% sure of syntax here at end
             let cos_theta = trig::cos_fast(vehicle.steer);
             let sin_theta = trig::sin_fast(vehicle.steer);
@@ -228,11 +252,7 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) -> bool {
             let p2 = Vec2 { x: FixedTrait::new(0, false), y: FixedTrait::new(0, false) };
             let q2 = Vec2 { x: FixedTrait::new(0, false), y: FixedTrait::new(GRID_HEIGHT, false) };
 
-            if closest_edge.intersects(p2, q2) {
-                true
-            } else {
-                false
-            }
+            assert(!closest_edge.intersects(p2, q2), 'hit left wall');
         },
         Wall::Right(()) => { // not 100% sure of syntax here at end
             let cos_theta = trig::cos_fast(vehicle.steer);
@@ -252,17 +272,9 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) -> bool {
                 x: FixedTrait::new(GRID_WIDTH, false), y: FixedTrait::new(GRID_HEIGHT, false)
             };
 
-            if closest_edge.intersects(p2, q2) {
-                true
-            } else {
-                false
-            }
+            assert(!closest_edge.intersects(p2, q2), 'hit right wall');
         },
     };
-
-    if wall_collision {
-        return true;
-    }
 
     /// Enemy collision check
     // Get array of only near enemies positions
@@ -307,10 +319,7 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) -> bool {
                         let p2 = vertices.at(enemy_edge_idx);
                         let q2 = vertices.at(q2_idx);
 
-                        if intersects(*p1, *q1, *p2, *q2) {
-                            // return true;
-                            break ();
-                        }
+                        assert(!intersects(*p1, *q1, *p2, *q2), 'hit enemy');
 
                         enemy_edge_idx += 1;
                     }
@@ -322,8 +331,6 @@ fn collision_check(vehicle: Vehicle, mut enemies: Array<Position>) -> bool {
         };
         vehicle_edge_idx += 1;
     };
-
-    false
 }
 
 
@@ -349,8 +356,7 @@ mod spawn_racer {
             (
                 Racer {
                     driver: ctx.origin, model
-                },
-                Vehicle {
+                    }, Vehicle {
                     position,
                     steer: FixedTrait::new(0_u128, false),
                     speed: FixedTrait::new(FIFTY, false),
@@ -375,10 +381,8 @@ mod drive {
     use drive_ai::vehicle::{Controls, Vehicle, VehicleTrait};
     use drive_ai::enemy::{Position, ENEMIES_NB};
     use super::{Racer, Sensors, compute_sensors};
-    use debug::PrintTrait;
 
     fn execute(ctx: Context, model: felt252) {
-        'Initialize'.print();
         let mut vehicle = get !(ctx.world, model.into(), Vehicle);
 
         let mut enemies = ArrayTrait::<Position>::new();
@@ -393,18 +397,15 @@ mod drive {
             i += 1;
         }
 
-        '1. Compute sensors'.print();
         // 1. Compute sensors, reverts if there is a collision (game over)
         let sensors = compute_sensors(vehicle, enemies);
 
-        '2. Run model forward pass'.print();
         // 2. Run model forward pass
         let mut sensor_calldata = ArrayTrait::new();
         sensors.serialize(ref sensor_calldata);
         let mut controls = ctx.world.execute('model', sensor_calldata.span());
         let controls = serde::Serde::<Controls>::deserialize(ref controls).unwrap();
 
-        '3. Update car position'.print();
         // 3. Update car position
         vehicle.control(controls);
         vehicle.drive();
@@ -414,13 +415,12 @@ mod drive {
             (Vehicle { position: vehicle.position, steer: vehicle.steer, speed: vehicle.speed })
         );
 
-        '4. Update enemeie positions'.print();
         // 4. Move enemeies to updated positions
         // TODO: This retrieves enemies again internally, we should
         // only read them once (pass them in here?)
         let mut calldata = ArrayTrait::new();
         calldata.append(model);
-        // ctx.world.execute('move_enemies', calldata.span());
+        ctx.world.execute('move_enemies', calldata.span());
     }
 }
 
