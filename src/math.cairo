@@ -143,9 +143,7 @@ mod tests {
 
         // x: ~-0.13397459621556135324, y: ~+2.2320508075688772935
         assert_precise(b.x, -2471395088767036514, 'invalid rotate x', Option::None(()));
-        assert(b.x.sign == true, 'invalid rotate x');
         assert_precise(b.y, 41174070006739806010, 'invalid rotate y', Option::None(()));
-        assert(b.y.sign == false, 'invalid rotate y');
     }
 
     #[test]
