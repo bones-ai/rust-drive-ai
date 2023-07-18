@@ -80,7 +80,7 @@ impl Net {
         let quantized_net = self.clone();
     
         // create file
-        let file_name = format!("{}/model.cairo", dir_path);
+        let file_name = format!("{}/model2.cairo", dir_path);
         let mut file = File::create(&file_name)?;
     
         // write general code
