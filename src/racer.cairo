@@ -422,46 +422,65 @@ mod tests {
     use cubit::test::helpers::assert_precise;
     use array::SpanTrait;
     use drive_ai::{Vehicle, VehicleTrait};
+    use drive_ai::rays::{RAY_LENGTH};
+    use super::{
+        compute_sensors, filter_positions, closest_position, near_wall, distances_to_wall,
+        collision_check
+    };
+    use super::{CAR_WIDTH, GRID_WIDTH};
 
-    use super::{Sensors, near_wall};
+    const TWO: u128 = 36893488147419103232;
+    const TEN: u128 = 184467440737095516160;
+    const HUNDRED: u128 = 1844674407370955161600;
 
-    const TEN: felt252 = 184467440737095516160;
-    const HUNDRED: felt252 = 1844674407370955161600;
-
-    // TODO FINISH
+    // TODO
     #[test]
     #[available_gas(20000000)]
-    fn test_sensors() {}
+    fn test_compute_sensors() {}
+
+    // TODO
+    #[test]
+    #[available_gas(20000000)]
+    fn test_filter_positions() {}
+
+    // TODO
+    #[test]
+    #[available_gas(20000000)]
+    fn test_closest_position() {}
 
     #[test]
     #[available_gas(20000000)]
-    fn test_near_obstacles() {}
-
-    #[test]
-    #[available_gas(20000000)]
-    fn test_near_enemies() {
-        let vehicle = Vehicle {
-            position: Vec2Trait::new(FixedTrait::from_felt(HUNDRED), FixedTrait::from_felt(TEN)),
+    fn test_near_wall() {
+        let vehicle_near_left_wall = Vehicle {
+            position: Vec2Trait::new(
+                FixedTrait::new(CAR_WIDTH, false), FixedTrait::new(TEN, false)
+            ),
             steer: FixedTrait::new(0, false),
             speed: FixedTrait::new(0, false)
         };
-        let mut enemies = ArrayTrait::<Vehicle>::new();
-        let mut enemy = Vehicle {
-            position: Vec2Trait::new(FixedTrait::from_felt(HUNDRED), FixedTrait::from_felt(TEN)),
+        let left_wall = near_wall(vehicle_near_left_wall);
+        assert(left_wall == Wall::Left, 'invalid near left wall');
+
+        let vehicle_near_no_wall = Vehicle {
+            position: Vec2Trait::new(
+                FixedTrait::new(GRID_WIDTH / TWO, false), FixedTrait::new(TEN, false)
+            ),
             steer: FixedTrait::new(0, false),
-            speed: FixedTrait::new(10, false)
+            speed: FixedTrait::new(0, false)
         };
+        let no_wall = near_wall(vehicle_near_no_wall);
+        assert(no_wall == Wall::None, 'invalid near no wall');
+
+        let vehicle_near_right_wall = Vehicle {
+            position: Vec2Trait::new(
+                FixedTrait::new(GRID_WIDTH - CAR_WIDTH, false), FixedTrait::new(TEN, false)
+            ),
+            steer: FixedTrait::new(0, false),
+            speed: FixedTrait::new(0, false)
+        };
+        let right_wall = near_wall(vehicle_near_right_wall);
+        assert(right_wall == Wall::Right, 'invalid near right wall');
     }
-
-    // TODO
-    #[test]
-    #[available_gas(20000000)]
-    fn test_near_wall() {}
-
-    // TODO
-    #[test]
-    #[available_gas(20000000)]
-    fn test_distances_to_enemy() {}
 
     // TODO
     #[test]
@@ -471,10 +490,5 @@ mod tests {
     // TODO
     #[test]
     #[available_gas(20000000)]
-    fn test_collision_enemy_check() {}
-
-    // TODO
-    #[test]
-    #[available_gas(20000000)]
-    fn test_collision_wall_check() {}
+    fn test_collision_check() {}
 }
