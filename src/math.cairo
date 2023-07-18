@@ -115,7 +115,7 @@ mod tests {
     use cubit::test::helpers::assert_precise;
     use array::SpanTrait;
 
-    use super::{vertices, orientation, intersects, distance};
+    use super::{rotate, vertices, intersects, orientation, distance};
 
     const TEN: u128 = 184467440737095516160;
     const TWENTY: u128 = 368934881474191032320;
@@ -213,24 +213,6 @@ mod tests {
 
     #[test]
     #[available_gas(20000000)]
-    fn test_orientation() {
-        let a = Vec2Trait::new(FixedTrait::new(0, false), FixedTrait::new(TEN, false));
-        let b = Vec2Trait::new(FixedTrait::new(TWENTY, false), FixedTrait::new(TWENTY, false));
-        let mut c = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(FORTY, false));
-        let mut orientation = orientation(a, b, c);
-        assert(orientation == 2_u8, 'invalid positive orientation');
-
-        c = Vec2Trait::new(FixedTrait::new(FORTY, false), FixedTrait::new(THIRTY, false));
-        orientation = orientation(a, b, c);
-        assert(orientation == 1_u8, 'invalid zero orientation');
-
-        c = Vec2Trait::new(FixedTrait::new(THIRTY, false), FixedTrait::zero());
-        orientation = orientation(a, b, c);
-        assert(orientation == 0_u8, 'invalid negative orientation');
-    }
-
-    #[test]
-    #[available_gas(20000000)]
     fn test_intersects() {
         // Four test for same lines, same intersection, but switching p's and q's for one or both lines
         let mut p1 = Vec2Trait::new(FixedTrait::new(FORTY, false), FixedTrait::new(THIRTY, false));
@@ -275,6 +257,24 @@ mod tests {
         q2 = Vec2Trait::new(FixedTrait::new(FORTY, false), FixedTrait::new(TEN, false));
         intersect = intersects(p1, q1, p2, q2);
         assert(intersect == true, 'invalid colinear intersection');
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    fn test_orientation() {
+        let a = Vec2Trait::new(FixedTrait::new(0, false), FixedTrait::new(TEN, false));
+        let b = Vec2Trait::new(FixedTrait::new(TWENTY, false), FixedTrait::new(TWENTY, false));
+        let mut c = Vec2Trait::new(FixedTrait::new(TEN, false), FixedTrait::new(FORTY, false));
+        let mut orientation = orientation(a, b, c);
+        assert(orientation == 2_u8, 'invalid positive orientation');
+
+        c = Vec2Trait::new(FixedTrait::new(FORTY, false), FixedTrait::new(THIRTY, false));
+        orientation = orientation(a, b, c);
+        assert(orientation == 1_u8, 'invalid zero orientation');
+
+        c = Vec2Trait::new(FixedTrait::new(THIRTY, false), FixedTrait::zero());
+        orientation = orientation(a, b, c);
+        assert(orientation == 0_u8, 'invalid negative orientation');
     }
 
     #[test]
