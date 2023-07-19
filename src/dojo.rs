@@ -24,9 +24,9 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use url::Url;
 
-pub fn rand_felt() -> FieldElement {
+pub fn rand_felt_fixed_point() -> FieldElement {
     let mut rng = rand::thread_rng();
-    ((((rng.gen::<u128>() % 200) << 64) % 200) << 64).into()
+    ((rng.gen::<u128>() % 200) << 64).into()
 }
 
 #[derive(Resource)]
@@ -151,7 +151,7 @@ fn spawn_racers_thread(
                 match spawn_racer_system
                     .execute(vec![
                         id,
-                        rand_felt(),
+                        rand_felt_fixed_point(),
                         FieldElement::ZERO,
                         FieldElement::ZERO,
                         FieldElement::ZERO,
