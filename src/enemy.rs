@@ -12,7 +12,7 @@ pub struct EnemyPlugin;
 
 #[derive(Component, Reflect, Default)]
 pub struct Enemy {
-    is_hit: bool,
+    pub is_hit: bool,
 }
 
 #[derive(Component)]
@@ -122,46 +122,46 @@ impl Plugin for EnemyPlugin {
 //     }
 // }
 
-pub fn spawn_bound_trucks(commands: &mut Commands, asset_server: &AssetServer) {
-    // Bound control trucks
-    let enemy_y = 100.0;
-    let mut enemy_x = 743.0; // upto 1169.0
-    for _ in 0..12 {
-        let enemy_type = EnemyType::Truck;
-        let enemy_scale = 3.0;
-        let collider = match enemy_type {
-            EnemyType::Truck => Collider::cuboid(6.0, 15.0),
-            _ => Collider::cuboid(4.0, 8.0),
-        };
-        let x = enemy_x;
-        let y = enemy_y;
+// pub fn spawn_bound_trucks(commands: &mut Commands, asset_server: &AssetServer) {
+//     // Bound control trucks
+//     let enemy_y = 100.0;
+//     let mut enemy_x = 743.0; // upto 1169.0
+//     for _ in 0..12 {
+//         let enemy_type = EnemyType::Truck;
+//         let enemy_scale = 3.0;
+//         let collider = match enemy_type {
+//             EnemyType::Truck => Collider::cuboid(6.0, 15.0),
+//             _ => Collider::cuboid(4.0, 8.0),
+//         };
+//         let x = enemy_x;
+//         let y = enemy_y;
 
-        enemy_x += 40.0;
-        commands.spawn((
-            SpriteBundle {
-                transform: Transform::from_xyz(x, y, 0.0).with_scale(vec3(
-                    enemy_scale,
-                    enemy_scale,
-                    1.0,
-                )),
-                texture: asset_server.load("bound-truck.png"),
-                ..default()
-            },
-            RigidBody::Fixed,
-            ActiveEvents::COLLISION_EVENTS,
-            collider,
-            Damping {
-                angular_damping: 2.0,
-                linear_damping: 2.0,
-            },
-            enemy_type,
-            BoundControlTruck,
-        ));
-    }
-}
+//         enemy_x += 40.0;
+//         commands.spawn((
+//             SpriteBundle {
+//                 transform: Transform::from_xyz(x, y, 0.0).with_scale(vec3(
+//                     enemy_scale,
+//                     enemy_scale,
+//                     1.0,
+//                 )),
+//                 texture: asset_server.load("bound-truck.png"),
+//                 ..default()
+//             },
+//             RigidBody::Fixed,
+//             ActiveEvents::COLLISION_EVENTS,
+//             collider,
+//             Damping {
+//                 angular_damping: 2.0,
+//                 linear_damping: 2.0,
+//             },
+//             enemy_type,
+//             BoundControlTruck,
+//         ));
+//     }
+// }
 
 impl EnemyType {
-    fn random() -> Self {
+    pub fn random() -> Self {
         let all_vals = [Self::Horizontal(3.0), Self::Simple, Self::Truck];
         let mut rng = thread_rng();
         let index = rng.gen_range(0..all_vals.len());
@@ -169,7 +169,7 @@ impl EnemyType {
         all_vals[index].clone()
     }
 
-    fn get_sprite(&self) -> &str {
+    pub fn get_sprite(&self) -> &str {
         let mut rng = thread_rng();
         match self {
             EnemyType::Simple => {

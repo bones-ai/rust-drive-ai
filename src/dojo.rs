@@ -3,10 +3,19 @@ use crate::car::CarBundle;
 use crate::configs;
 use crate::enemy::Enemy;
 use crate::enemy::EnemyId;
+use crate::enemy::EnemyType;
 use crate::ROAD_X_MIN;
 use bevy::ecs::system::SystemState;
 use bevy::log;
+use bevy::math::vec3;
 use bevy::prelude::*;
+use bevy_rapier2d::prelude::ActiveEvents;
+use bevy_rapier2d::prelude::Collider;
+use bevy_rapier2d::prelude::ColliderMassProperties;
+use bevy_rapier2d::prelude::Damping;
+use bevy_rapier2d::prelude::Friction;
+use bevy_rapier2d::prelude::RigidBody;
+use bevy_rapier2d::prelude::Velocity;
 use bevy_tokio_tasks::TaskContext;
 use bevy_tokio_tasks::{TokioTasksPlugin, TokioTasksRuntime};
 use dojo_client::contract::world::WorldContract;
@@ -149,32 +158,67 @@ fn spawn_racers_thread(
         let spawn_racer_system = world.system("spawn_racer", block_id).await.unwrap();
 
         while let Some(_) = rx.recv().await {
-            let mut model_ids = vec![];
-            for i in 0..configs::NUM_AI_CARS {
-                let id = FieldElement::from_dec_str(&i.to_string()).unwrap();
+            let model_id: FieldElement = 0_u8.into();
 
-                model_ids.push(id);
+            match spawn_racer_system
+                .execute(vec![
+                    model_id,
+                    rand_felt_fixed_point(),
+                    FieldElement::ZERO,
+                    FieldElement::ZERO,
+                    FieldElement::ZERO,
+                ])
+                .await
+            {
+                Ok(_) => {
+                    ctx.run_on_main_thread(move |ctx| {
+                        let asset_server = ctx.world.get_resource::<AssetServer>().unwrap();
+                        ctx.world.spawn(CarBundle::new(&asset_server, model_id));
+                    })
+                    .await;
 
-                match spawn_racer_system
-                    .execute(vec![
-                        id,
-                        rand_felt_fixed_point(),
-                        FieldElement::ZERO,
-                        FieldElement::ZERO,
-                        FieldElement::ZERO,
-                    ])
-                    .await
-                {
-                    Ok(_) => {
-                        ctx.run_on_main_thread(move |ctx| {
+                    ctx.run_on_main_thread(move |ctx| {
+                        for id in 0..configs::DOJO_ENEMIES_NB {
                             let asset_server = ctx.world.get_resource::<AssetServer>().unwrap();
-                            ctx.world.spawn(CarBundle::new(&asset_server, id));
-                        })
-                        .await;
-                    }
-                    Err(e) => {
-                        log::error!("Run spawn_racer system: {e}");
-                    }
+
+                            let enemy_type = EnemyType::random();
+                            let enemy_scale = match enemy_type {
+                                EnemyType::Truck => 3.0,
+                                _ => 2.5,
+                            };
+                            let collider = match enemy_type {
+                                EnemyType::Truck => Collider::cuboid(6.0, 15.0),
+                                _ => Collider::cuboid(4.0, 8.0),
+                            };
+
+                            ctx.world.spawn((
+                                SpriteBundle {
+                                    // TODO: workaround: spawn outside of screen because we know all enermies are spawned but don't know their positions yet
+                                    transform: Transform::from_xyz(1000.0, 1000.0, 0.0)
+                                        .with_scale(vec3(enemy_scale, enemy_scale, 1.0)),
+                                    texture: asset_server.load(enemy_type.get_sprite()),
+                                    ..default()
+                                },
+                                RigidBody::Dynamic,
+                                Velocity::zero(),
+                                ColliderMassProperties::Mass(1.0),
+                                Friction::new(100.0),
+                                ActiveEvents::COLLISION_EVENTS,
+                                collider,
+                                Damping {
+                                    angular_damping: 2.0,
+                                    linear_damping: 2.0,
+                                },
+                                Enemy { is_hit: false },
+                                EnemyId(id.into()),
+                                enemy_type,
+                            ));
+                        }
+                    })
+                    .await;
+                }
+                Err(e) => {
+                    log::error!("Run spawn_racer system: {e}");
                 }
             }
         }
@@ -239,11 +283,11 @@ fn update_vehicle_thread(
 
                     log::info!("Vehicle Position ({model_id}), x: {new_x}, y: {new_y}");
 
-                    // update_position::<Car>(ctx.clone(), model_id, new_x, new_y).await;
                     ctx.run_on_main_thread(move |ctx| {
                         let mut state: SystemState<Query<&mut Transform, With<Car>>> =
                             SystemState::new(ctx.world);
                         let mut query = state.get_mut(ctx.world);
+
                         if let Ok(mut transform) = query.get_single_mut() {
                             transform.translation.x = new_x;
                             transform.translation.y = new_y;
@@ -293,8 +337,10 @@ fn update_enemies_thread(
                         // TODO: Why it's always x: 0, y: 0,
                         // log::info!("{position:#?}");
 
-                        let new_x = position[0].to_string().parse().unwrap();
-                        let new_y = position[1].to_string().parse().unwrap();
+                        let (new_x, new_y) = dojo_to_bevy_coordinate(
+                            position[0].to_string().parse().unwrap(),
+                            position[1].to_string().parse().unwrap(),
+                        );
 
                         // TODO: multiply by dojo_to_bevy coordinate ratio
 

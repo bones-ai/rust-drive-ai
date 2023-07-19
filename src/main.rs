@@ -6,8 +6,8 @@ use steering::{
     car::{Car, CarPlugin},
     configs::*,
     dojo::DojoPlugin,
-    enemy::{spawn_bound_trucks, EnemyPlugin},
-    gui::GuiPlugin,
+    enemy::EnemyPlugin,
+    // gui::GuiPlugin,
     population::PopulationPlugin,
     resources::MaxDistanceTravelled,
 };
@@ -66,7 +66,7 @@ fn setup(
         .insert(PanCam::default());
 
     spawn_roads(&mut commands, &asset_server);
-    spawn_bound_trucks(&mut commands, &asset_server);
+    // spawn_bound_trucks(&mut commands, &asset_server);
 }
 
 fn camera_follow_system(
