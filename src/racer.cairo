@@ -340,7 +340,7 @@ mod spawn_racer {
     use array::ArrayTrait;
     use traits::Into;
     use cubit::types::FixedTrait;
-    use cubit::types::Vec2Trait;
+    use cubit::types::{Vec2Trait, Vec2};
 
     use dojo::world::Context;
     use drive_ai::Vehicle;
@@ -349,10 +349,10 @@ mod spawn_racer {
 
     const FIFTY: u128 = 922337203685477580800;
 
-    fn execute(ctx: Context, model: felt252) {
-        let position = Vec2Trait::new(
-            FixedTrait::new(HALF_GRID_WIDTH, false), FixedTrait::new(0, false)
-        );
+    fn execute(ctx: Context, model: felt252, position: Vec2) {
+        // let position = Vec2Trait::new(
+        //     FixedTrait::new(HALF_GRID_WIDTH, false), FixedTrait::new(0, false)
+        // );
         set !(
             ctx.world,
             model.into(),
