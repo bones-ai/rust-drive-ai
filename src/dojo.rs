@@ -20,19 +20,57 @@ use starknet::providers::JsonRpcClient;
 use starknet::signers::{LocalWallet, SigningKey};
 use std::ops::Div;
 use std::str::FromStr;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use url::Url;
 
 pub fn rand_felt() -> FieldElement {
     let mut rng = rand::thread_rng();
-    ((rng.gen::<u128>() % 200) << 64).into()
+    ((((rng.gen::<u128>() % 200) << 64) % 200) << 64).into()
+}
+
+#[derive(Resource)]
+pub struct DojoEnv {
+    /// The block ID to use for all contract calls.
+    block_id: BlockId,
+    /// The address of the world contract.
+    world_address: FieldElement,
+    /// The account to use for performing execution on the World contract.
+    account: Arc<SingleOwnerAccount<JsonRpcClient<HttpTransport>, LocalWallet>>,
+}
+
+impl DojoEnv {
+    fn new(
+        world_address: FieldElement,
+        account: SingleOwnerAccount<JsonRpcClient<HttpTransport>, LocalWallet>,
+    ) -> Self {
+        Self {
+            world_address,
+            account: Arc::new(account),
+            block_id: BlockId::Tag(BlockTag::Latest),
+        }
+    }
 }
 
 pub struct DojoPlugin;
 
 impl Plugin for DojoPlugin {
     fn build(&self, app: &mut App) {
+        let url = Url::parse(configs::JSON_RPC_ENDPOINT).unwrap();
+        let account_address = FieldElement::from_str(configs::ACCOUNT_ADDRESS).unwrap();
+        let account = SingleOwnerAccount::new(
+            JsonRpcClient::new(HttpTransport::new(url)),
+            LocalWallet::from_signing_key(SigningKey::from_secret_scalar(
+                FieldElement::from_str(configs::ACCOUNT_SECRET_KEY).unwrap(),
+            )),
+            account_address,
+            cairo_short_string_to_felt("KATANA").unwrap(),
+        );
+
+        let world_address = FieldElement::from_str(configs::WORLD_ADDRESS).unwrap();
+
         app.add_plugin(TokioTasksPlugin::default())
+            .insert_resource(DojoEnv::new(world_address, account))
             .add_startup_systems((
                 setup,
                 spawn_racers_thread,
@@ -143,29 +181,16 @@ fn spawn_racers_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Command
     });
 }
 
-fn drive_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Commands) {
+fn drive_thread(env: Res<DojoEnv>, runtime: ResMut<TokioTasksRuntime>, mut commands: Commands) {
     let (tx, mut rx) = mpsc::channel::<()>(8);
     commands.insert_resource(DriveCommand(tx));
 
-    runtime.spawn_background_task(|mut ctx| async move {
-        // Get world contract
-        // TODO: Can it be added as Resource or Component? If yes, we don't need the mpsc channel.
-        // also how can I workaround &account ownership issue?
-        let url = Url::parse(configs::JSON_RPC_ENDPOINT).unwrap();
-        let account_address = FieldElement::from_str(configs::ACCOUNT_ADDRESS).unwrap();
-        let account = SingleOwnerAccount::new(
-            JsonRpcClient::new(HttpTransport::new(url)),
-            LocalWallet::from_signing_key(SigningKey::from_secret_scalar(
-                FieldElement::from_str(configs::ACCOUNT_SECRET_KEY).unwrap(),
-            )),
-            account_address,
-            cairo_short_string_to_felt("KATANA").unwrap(),
-        );
+    let account = env.account.clone();
+    let world_address = env.world_address;
+    let block_id = env.block_id;
 
-        let world_address = FieldElement::from_str(configs::WORLD_ADDRESS).unwrap();
-        let block_id = BlockId::Tag(BlockTag::Latest);
-
-        let world = WorldContract::new(world_address, &account);
+    runtime.spawn_background_task(move |mut ctx| async move {
+        let world = WorldContract::new(world_address, account.as_ref());
 
         let drive_system = world.system("drive", block_id).await.unwrap();
 
@@ -191,27 +216,20 @@ fn drive_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Commands) {
     });
 }
 
-fn update_vehicle_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Commands) {
+fn update_vehicle_thread(
+    env: Res<DojoEnv>,
+    runtime: ResMut<TokioTasksRuntime>,
+    mut commands: Commands,
+) {
     let (tx, mut rx) = mpsc::channel::<()>(8);
     commands.insert_resource(UpdateVehicleCommand(tx));
 
-    runtime.spawn_background_task(|ctx| async move {
-        let url = Url::parse(configs::JSON_RPC_ENDPOINT).unwrap();
-        let account_address = FieldElement::from_str(configs::ACCOUNT_ADDRESS).unwrap();
-        let account = SingleOwnerAccount::new(
-            JsonRpcClient::new(HttpTransport::new(url)),
-            LocalWallet::from_signing_key(SigningKey::from_secret_scalar(
-                FieldElement::from_str(configs::ACCOUNT_SECRET_KEY).unwrap(),
-            )),
-            account_address,
-            cairo_short_string_to_felt("KATANA").unwrap(),
-        );
+    let account = env.account.clone();
+    let world_address = env.world_address;
+    let block_id = env.block_id;
 
-        let world_address = FieldElement::from_str(configs::WORLD_ADDRESS).unwrap();
-        let block_id = BlockId::Tag(BlockTag::Latest);
-
-        let world = WorldContract::new(world_address, &account);
-
+    runtime.spawn_background_task(move |ctx| async move {
+        let world = WorldContract::new(world_address, account.as_ref());
         let vehicle_component = world.component("Vehicle", block_id).await.unwrap();
 
         while let Some(_) = rx.recv().await {
@@ -243,27 +261,20 @@ fn update_vehicle_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Comma
     });
 }
 
-fn update_enemies_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Commands) {
+fn update_enemies_thread(
+    env: Res<DojoEnv>,
+    runtime: ResMut<TokioTasksRuntime>,
+    mut commands: Commands,
+) {
     let (tx, mut rx) = mpsc::channel::<()>(8);
     commands.insert_resource(UpdateEnemiesCommand(tx));
 
-    runtime.spawn_background_task(|ctx| async move {
-        let url = Url::parse(configs::JSON_RPC_ENDPOINT).unwrap();
-        let account_address = FieldElement::from_str(configs::ACCOUNT_ADDRESS).unwrap();
-        let account = SingleOwnerAccount::new(
-            JsonRpcClient::new(HttpTransport::new(url)),
-            LocalWallet::from_signing_key(SigningKey::from_secret_scalar(
-                FieldElement::from_str(configs::ACCOUNT_SECRET_KEY).unwrap(),
-            )),
-            account_address,
-            cairo_short_string_to_felt("KATANA").unwrap(),
-        );
+    let account = env.account.clone();
+    let world_address = env.world_address;
+    let block_id = env.block_id;
 
-        let world_address = FieldElement::from_str(configs::WORLD_ADDRESS).unwrap();
-        let block_id = BlockId::Tag(BlockTag::Latest);
-
-        let world = WorldContract::new(world_address, &account);
-
+    runtime.spawn_background_task(move |ctx| async move {
+        let world = WorldContract::new(world_address, account.as_ref());
         let position_component = world.component("Position", block_id).await.unwrap();
 
         while let Some(_) = rx.recv().await {
