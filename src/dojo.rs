@@ -25,7 +25,7 @@ use url::Url;
 
 pub fn rand_felt() -> FieldElement {
     let mut rng = rand::thread_rng();
-    rng.gen::<u128>().into()
+    ((rng.gen::<u128>() % 200) << 64).into()
 }
 
 pub struct DojoPlugin;
@@ -111,19 +111,26 @@ fn spawn_racers_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Command
         let spawn_racer_system = world.system("spawn_racer", block_id).await.unwrap();
 
         while let Some(_) = rx.recv().await {
-            let mut dojo_ids = vec![];
+            let mut model_ids = vec![];
             for i in 0..configs::NUM_AI_CARS {
-                let dojo_id = FieldElement::from_dec_str(&i.to_string()).unwrap();
+                let id = FieldElement::from_dec_str(&i.to_string()).unwrap();
 
-                dojo_ids.push(dojo_id);
+                model_ids.push(id);
 
-                match spawn_racer_system.execute(vec![dojo_id]).await {
+                match spawn_racer_system
+                    .execute(vec![
+                        id,
+                        rand_felt(),
+                        FieldElement::ZERO,
+                        FieldElement::ZERO,
+                        FieldElement::ZERO,
+                    ])
+                    .await
+                {
                     Ok(_) => {
-                        log::info!("Run drive system");
-
                         ctx.run_on_main_thread(move |ctx| {
                             let asset_server = ctx.world.get_resource::<AssetServer>().unwrap();
-                            ctx.world.spawn(CarBundle::new(&asset_server, dojo_id));
+                            ctx.world.spawn(CarBundle::new(&asset_server, id));
                         })
                         .await;
                     }
@@ -163,20 +170,20 @@ fn drive_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Commands) {
         let drive_system = world.system("drive", block_id).await.unwrap();
 
         while let Some(_) = rx.recv().await {
-            let dojo_ids = ctx
+            let model_ids = ctx
                 .run_on_main_thread(move |ctx| {
                     let mut state: SystemState<Query<&Car>> = SystemState::new(ctx.world);
                     let query = state.get(ctx.world);
 
                     query
                         .iter()
-                        .map(|car| car.dojo_id)
+                        .map(|car| car.model_id)
                         .collect::<Vec<FieldElement>>()
                 })
                 .await;
 
-            for dojo_id in dojo_ids.iter() {
-                if let Err(e) = drive_system.execute(vec![*dojo_id]).await {
+            for id in model_ids.iter() {
+                if let Err(e) = drive_system.execute(vec![*id]).await {
                     log::error!("Run drive system: {e}");
                 }
             }
@@ -208,9 +215,9 @@ fn update_vehicle_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Comma
         let vehicle_component = world.component("Vehicle", block_id).await.unwrap();
 
         while let Some(_) = rx.recv().await {
-            let dojo_ids = get_dojo_ids(ctx.clone()).await;
+            let model_ids = get_model_ids(ctx.clone()).await;
 
-            for id in dojo_ids.iter() {
+            for id in model_ids.iter() {
                 match vehicle_component
                     .entity(FieldElement::ZERO, vec![*id], block_id)
                     .await
@@ -218,11 +225,14 @@ fn update_vehicle_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Comma
                     Ok(vehicle) => {
                         // log::info!("{vehicle:#?}");
 
-                        let (new_x, new_y) = to_bevy_coordinate(vehicle[0], vehicle[2]);
+                        let (new_x, new_y) = dojo_to_bevy_coordinate(
+                            fixed_to_f32(vehicle[0]),
+                            fixed_to_f32(vehicle[2]),
+                        );
 
                         log::info!("Vehicle Position ({id}), x: {new_x}, y: {new_y}");
 
-                        update_position::<Car>(ctx.clone(), new_x, new_y).await;
+                        update_position::<Car>(ctx.clone(), *id, new_x, new_y).await;
                     }
                     Err(e) => {
                         log::error!("Query `Vehicle` component: {e}");
@@ -257,15 +267,15 @@ fn update_enemies_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Comma
         let position_component = world.component("Position", block_id).await.unwrap();
 
         while let Some(_) = rx.recv().await {
-            let dojo_ids = get_dojo_ids(ctx.clone()).await;
+            let model_ids = get_model_ids(ctx.clone()).await;
 
-            for id in dojo_ids {
+            for id in model_ids {
                 match position_component
                     .entity(FieldElement::ZERO, vec![id], block_id)
                     .await
                 {
                     Ok(position) => {
-                        // TODO: Why it always x: 0, y: 0,
+                        // TODO: Why it's always x: 0, y: 0,
                         // log::info!("{position:#?}");
 
                         let new_x = position[0].to_string().parse().unwrap();
@@ -275,7 +285,7 @@ fn update_enemies_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Comma
 
                         log::info!("Enermy Position ({id}), x: {new_x}, y: {new_y}");
 
-                        update_position::<Enemy>(ctx.clone(), new_x, new_y).await;
+                        update_position::<Enemy>(ctx.clone(), id, new_x, new_y).await;
                     }
                     Err(e) => {
                         log::error!("Query `Position` component: {e}");
@@ -323,29 +333,33 @@ impl UpdateEnemiesCommand {
         self.0.try_send(())
     }
 }
-async fn get_dojo_ids(mut ctx: TaskContext) -> Vec<FieldElement> {
+
+async fn get_model_ids(mut ctx: TaskContext) -> Vec<FieldElement> {
     ctx.run_on_main_thread(|ctx| {
         let mut state: SystemState<Query<&Car>> = SystemState::new(ctx.world);
         let query = state.get(ctx.world);
 
         query
             .iter()
-            .map(|car| car.dojo_id)
+            .map(|car| car.model_id)
             .collect::<Vec<FieldElement>>()
     })
     .await
 }
 
-async fn update_position<T>(mut ctx: TaskContext, x: f32, y: f32)
+async fn update_position<T>(mut ctx: TaskContext, id: FieldElement, x: f32, y: f32)
 where
     T: Component,
 {
     ctx.run_on_main_thread(move |ctx| {
-        let mut state: SystemState<Query<&mut Transform, With<T>>> = SystemState::new(ctx.world);
+        let mut state: SystemState<Query<(&mut Transform, &Car), With<T>>> =
+            SystemState::new(ctx.world);
         let mut query = state.get_mut(ctx.world);
-        for mut transform in query.iter_mut() {
-            transform.translation.x = x;
-            transform.translation.y = y;
+        for (mut transform, car) in query.iter_mut() {
+            if car.model_id == id {
+                transform.translation.x = x;
+                transform.translation.y = y;
+            }
         }
     })
     .await
@@ -359,10 +373,7 @@ fn fixed_to_f32(val: FieldElement) -> f32 {
         .unwrap()
 }
 
-fn to_bevy_coordinate(dojo_x: FieldElement, dojo_y: FieldElement) -> (f32, f32) {
-    let dojo_x = fixed_to_f32(dojo_x);
-    let dojo_y = fixed_to_f32(dojo_y);
-
+fn dojo_to_bevy_coordinate(dojo_x: f32, dojo_y: f32) -> (f32, f32) {
     let bevy_x = dojo_x * configs::DOJO_TO_BEVY_RATIO_X + ROAD_X_MIN;
     let bevy_y = dojo_y * configs::DOJO_TO_BEVY_RATIO_Y;
 

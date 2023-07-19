@@ -109,10 +109,10 @@ fn population_stats_system(
 //     settings.restart_sim = false;
 
 //     for i in 0..NUM_AI_CARS {
-//         let dojo_id = FieldElement::from_dec_str(&i.to_string()).unwrap();
+//         let model_id = FieldElement::from_dec_str(&i.to_string()).unwrap();
 
 //         match is_new_nn {
-//             true => commands.spawn(CarBundle::new(asset_server, dojo_id)),
+//             true => commands.spawn(CarBundle::new(asset_server, model_id)),
 //             false => commands.spawn(CarBundle::with_model(
 //                 asset_server,
 //                 &models.get(i as usize).unwrap(),
