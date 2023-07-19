@@ -2,12 +2,14 @@ use bevy::{math::vec3, prelude::*};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_rapier2d::prelude::{NoUserData, RapierConfiguration, RapierPhysicsPlugin};
-use steering::*;
 use steering::{
     car::{Car, CarPlugin},
+    configs::*,
     dojo::DojoPlugin,
+    enemy::{spawn_bound_trucks, EnemyPlugin},
     gui::GuiPlugin,
     population::PopulationPlugin,
+    resources::MaxDistanceTravelled,
 };
 
 fn main() {
@@ -44,7 +46,7 @@ fn main() {
         // .insert_resource(Msaa::Off)
         .add_startup_system(setup)
         .add_system(bevy::window::close_on_esc)
-        .add_system(camera_follow_system)
+        // .add_system(camera_follow_system)
         // .add_system(settings_system)
         .run();
 }
@@ -64,7 +66,7 @@ fn setup(
         .insert(PanCam::default());
 
     spawn_roads(&mut commands, &asset_server);
-    // spawn_bound_trucks(&mut commands, &asset_server);
+    spawn_bound_trucks(&mut commands, &asset_server);
 }
 
 fn camera_follow_system(

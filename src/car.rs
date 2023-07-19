@@ -268,7 +268,8 @@ impl CarBundle {
 
         Self {
             sprite_bundle: SpriteBundle {
-                transform: Transform::from_xyz(WINDOW_WIDTH / 2.00, WINDOW_HEIGHT / 2.0, 0.0),
+                // TODO: make cordinate dynamic
+                transform: Transform::from_xyz(298.0, 0.0, 0.0).with_scale(vec3(2.5, 2.5, 1.0)),
                 texture: asset_server.load("agent.png"),
                 ..default()
             },

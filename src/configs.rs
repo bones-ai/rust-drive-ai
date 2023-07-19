@@ -12,13 +12,15 @@ pub const WINDOW_HEIGHT: f32 = 1000.0;
 
 pub const ROAD_X_MIN: f32 = 238.0; // TODO: compute with SPRITE_SCALE_FACTOR
 pub const ROAD_X_MAX: f32 = 718.0;
+// TODO: subtract starting line (window / 2)
 pub const ROAD_W: f32 = ROAD_X_MAX - ROAD_X_MIN;
+// TODO: subtract goal position ()
 pub const ROAD_H: f32 = WINDOW_HEIGHT * NUM_ROAD_TILES as f32;
 pub const DOJO_TO_BEVY_RATIO_X: f32 = ROAD_W / DOJO_GRID_WIDTH;
 pub const DOJO_TO_BEVY_RATIO_Y: f32 = ROAD_H / DOJO_GRID_HEIGHT;
 
 /// Car
-pub const NUM_AI_CARS: u32 = 1;
+pub const NUM_AI_CARS: u32 = 10;
 pub const TURN_SPEED: f32 = 25.0;
 pub const CAR_THRUST: f32 = 5.0 * 100.0;
 pub const MAX_SPEED: f32 = 10.0 * 300.0;

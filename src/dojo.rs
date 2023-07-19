@@ -70,9 +70,9 @@ fn sync_dojo_state(
         if let Err(e) = update_vehicle.try_send() {
             log::error!("{e}");
         }
-        if let Err(e) = drive.try_send() {
-            log::error!("{e}");
-        }
+        // if let Err(e) = drive.try_send() {
+        //     log::error!("{e}");
+        // }
         if let Err(e) = update_enemies.try_send() {
             log::error!("{e}");
         }
@@ -259,10 +259,13 @@ fn update_enemies_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Comma
                     .await
                 {
                     Ok(position) => {
+                        // TODO: Why it always x: 0, y: 0,
                         // log::info!("{position:#?}");
 
                         let new_x = position[0].to_string().parse().unwrap();
                         let new_y = position[1].to_string().parse().unwrap();
+
+                        // TODO: multiply by dojo_to_bevy coordinate ratio
 
                         log::info!("Enermy Position ({id}), x: {new_x}, y: {new_y}");
 
