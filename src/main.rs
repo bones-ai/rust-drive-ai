@@ -44,7 +44,7 @@ fn main() {
         // .insert_resource(Msaa::Off)
         .add_startup_system(setup)
         .add_system(bevy::window::close_on_esc)
-        // .add_system(camera_follow_system)
+        .add_system(camera_follow_system)
         // .add_system(settings_system)
         .run();
 }
@@ -67,19 +67,19 @@ fn setup(
     // spawn_bound_trucks(&mut commands, &asset_server);
 }
 
-// fn camera_follow_system(
-//     settings: Res<Settings>,
-//     max_distance_travelled: Res<MaxDistanceTravelled>,
-//     mut cam_query: Query<(&Camera, &mut Transform), Without<Car>>,
-// ) {
-//     let (_, mut cam_transform) = cam_query.get_single_mut().unwrap();
-//     if settings.is_camera_follow {
-//         cam_transform.translation = cam_transform.translation.lerp(
-//             vec3(cam_transform.translation.x, max_distance_travelled.0, 0.0),
-//             0.05,
-//         );
-//     }
-// }
+fn camera_follow_system(
+    // settings: Res<Settings>,
+    max_distance_travelled: Res<MaxDistanceTravelled>,
+    mut cam_query: Query<(&Camera, &mut Transform), Without<Car>>,
+) {
+    let (_, mut cam_transform) = cam_query.get_single_mut().unwrap();
+    // if settings.is_camera_follow {
+    cam_transform.translation = cam_transform.translation.lerp(
+        vec3(cam_transform.translation.x, max_distance_travelled.0, 0.0),
+        0.05,
+    );
+    // }
+}
 
 fn spawn_roads(commands: &mut Commands, asset_server: &AssetServer) {
     // Road

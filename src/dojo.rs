@@ -2,19 +2,22 @@ use crate::car::Car;
 use crate::car::CarBundle;
 use crate::configs;
 use crate::enemy::Enemy;
+use crate::ROAD_X_MIN;
 use bevy::ecs::system::SystemState;
 use bevy::log;
 use bevy::prelude::*;
 use bevy_tokio_tasks::TaskContext;
 use bevy_tokio_tasks::{TokioTasksPlugin, TokioTasksRuntime};
-use bigdecimal::ToPrimitive;
 use dojo_client::contract::world::WorldContract;
+use num::bigint::BigUint;
+use num::{FromPrimitive, ToPrimitive};
 use starknet::accounts::SingleOwnerAccount;
 use starknet::core::types::{BlockId, BlockTag, FieldElement};
 use starknet::core::utils::cairo_short_string_to_felt;
 use starknet::providers::jsonrpc::HttpTransport;
 use starknet::providers::JsonRpcClient;
 use starknet::signers::{LocalWallet, SigningKey};
+use std::ops::Div;
 use std::str::FromStr;
 use tokio::sync::mpsc;
 use url::Url;
@@ -207,18 +210,11 @@ fn update_vehicle_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Comma
                     .await
                 {
                     Ok(vehicle) => {
-                        log::info!("Vehicle: {vehicle:#?}");
-                        let dojo_x = to_f32(vehicle[0]);
-                        let dojo_y = to_f32(vehicle[2]);
+                        // log::info!("{vehicle:#?}");
 
-                        // log::info!(
-                        //     "New Position: Vehicle({}), {{x: {}, y: {}}}",
-                        //     id,
-                        //     dojo_x,
-                        //     dojo_y
-                        // );
+                        let (new_x, new_y) = to_bevy_coordinate(vehicle[0], vehicle[2]);
 
-                        let (new_x, new_y) = to_road_position(dojo_x, dojo_y);
+                        log::info!("Vehicle Position ({id}), x: {new_x}, y: {new_y}");
 
                         update_position::<Car>(ctx.clone(), new_x, new_y).await;
                     }
@@ -265,20 +261,10 @@ fn update_enemies_thread(runtime: ResMut<TokioTasksRuntime>, mut commands: Comma
                     Ok(position) => {
                         // log::info!("{position:#?}");
 
-                        let dojo_x = to_f32(position[0]);
-                        let dojo_y = to_f32(position[1]);
+                        let new_x = position[0].to_string().parse().unwrap();
+                        let new_y = position[1].to_string().parse().unwrap();
 
-                        // log::info!(
-                        //     "Update Position: Enemy({}), {{x: {}, y: {}}}",
-                        //     id,
-                        //     dojo_x,
-                        //     dojo_y
-                        // );
-
-                        let new_x = configs::WINDOW_WIDTH / 2.0
-                            + (dojo_x * configs::WINDOW_WIDTH / configs::DOJO_GRID_WIDTH);
-                        let new_y = configs::WINDOW_HEIGHT / 2.0
-                            + (dojo_y * configs::WINDOW_HEIGHT / configs::DOJO_GRID_HEIGHT);
+                        log::info!("Enermy Position ({id}), x: {new_x}, y: {new_y}");
 
                         update_position::<Enemy>(ctx.clone(), new_x, new_y).await;
                     }
@@ -341,17 +327,12 @@ async fn get_dojo_ids(mut ctx: TaskContext) -> Vec<FieldElement> {
     .await
 }
 
-fn to_f32(el: FieldElement) -> f32 {
-    el.to_big_decimal(19).to_f32().unwrap()
-}
-
 async fn update_position<T>(mut ctx: TaskContext, x: f32, y: f32)
 where
     T: Component,
 {
     ctx.run_on_main_thread(move |ctx| {
-        let mut state: SystemState<Query<&mut Transform, With<Enemy>>> =
-            SystemState::new(ctx.world);
+        let mut state: SystemState<Query<&mut Transform, With<T>>> = SystemState::new(ctx.world);
         let mut query = state.get_mut(ctx.world);
         for mut transform in query.iter_mut() {
             transform.translation.x = x;
@@ -361,14 +342,23 @@ where
     .await
 }
 
-// TODO
-fn to_road_position(x: f32, y: f32) -> (f32, f32) {
-    let rx = configs::WINDOW_WIDTH / 2.0 - 30.0;
-    let ry = configs::ROAD_SPRITE_H / 2.0 * configs::SPRITE_SCALE_FACTOR
-        + (configs::ROAD_SPRITE_H * configs::SPRITE_SCALE_FACTOR) * configs::NUM_ROAD_TILES as f32;
+fn fixed_to_f32(val: FieldElement) -> f32 {
+    BigUint::from_str(&val.to_string())
+        .unwrap()
+        .div(BigUint::from_i8(2).unwrap().pow(64))
+        .to_f32()
+        .unwrap()
+}
 
-    let new_x = configs::WINDOW_WIDTH + (x * rx / configs::DOJO_GRID_WIDTH);
-    let new_y = configs::WINDOW_HEIGHT + (y * ry / configs::DOJO_GRID_HEIGHT);
+fn to_bevy_coordinate(dojo_x: FieldElement, dojo_y: FieldElement) -> (f32, f32) {
+    let dojo_x = fixed_to_f32(dojo_x);
+    let dojo_y = fixed_to_f32(dojo_y);
 
-    (new_x, new_y)
+    let bevy_x = dojo_x * configs::DOJO_TO_BEVY_RATIO_X + ROAD_X_MIN;
+    let bevy_y = dojo_y * configs::DOJO_TO_BEVY_RATIO_Y;
+
+    // log::info!("dojo_x: {}, dojo_y: {}", dojo_x, dojo_y);
+    // log::info!("bevy_x: {}, bevy_y: {}", bevy_x, bevy_y);
+
+    (bevy_x, bevy_y)
 }
