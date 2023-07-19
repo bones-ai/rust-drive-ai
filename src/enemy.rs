@@ -4,8 +4,9 @@ use bevy::{
 };
 use bevy_rapier2d::prelude::*;
 use rand::{thread_rng, Rng};
+use starknet::core::types::FieldElement;
 
-use crate::*;
+// use crate::*;
 
 pub struct EnemyPlugin;
 
@@ -13,6 +14,9 @@ pub struct EnemyPlugin;
 pub struct Enemy {
     is_hit: bool,
 }
+
+#[derive(Component)]
+pub struct EnemyId(pub FieldElement);
 
 #[derive(Clone, Component, Reflect)]
 pub enum EnemyType {

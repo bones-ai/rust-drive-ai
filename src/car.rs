@@ -13,9 +13,7 @@ use crate::*;
 pub struct CarPlugin;
 
 #[derive(Component)]
-pub struct Car {
-    pub model_id: FieldElement,
-}
+pub struct Car;
 
 #[derive(Component)]
 pub struct Model {
@@ -273,7 +271,7 @@ impl CarBundle {
                 texture: asset_server.load("agent.png"),
                 ..default()
             },
-            car: Car { model_id },
+            car: Car,
             fitness: Fitness(0.0),
             model: Model {
                 nn: Net::new(vec![

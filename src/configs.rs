@@ -20,7 +20,7 @@ pub const DOJO_TO_BEVY_RATIO_X: f32 = ROAD_W / DOJO_GRID_WIDTH;
 pub const DOJO_TO_BEVY_RATIO_Y: f32 = ROAD_H / DOJO_GRID_HEIGHT;
 
 /// Car
-pub const NUM_AI_CARS: u32 = 10;
+pub const NUM_AI_CARS: u32 = 1;
 pub const TURN_SPEED: f32 = 25.0;
 pub const CAR_THRUST: f32 = 5.0 * 100.0;
 pub const MAX_SPEED: f32 = 10.0 * 300.0;
@@ -52,3 +52,4 @@ pub const WORLD_ADDRESS: &str = "0x26065106fa319c3981618e7567480a50132f23932226a
 pub const DOJO_SYNC_INTERVAL: f32 = 0.1;
 pub const DOJO_GRID_WIDTH: f32 = 400.0;
 pub const DOJO_GRID_HEIGHT: f32 = 1000.0;
+pub const DOJO_ENEMIES_NB: u32 = 10;
