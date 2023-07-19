@@ -11,6 +11,7 @@ use bevy_tokio_tasks::{TokioTasksPlugin, TokioTasksRuntime};
 use dojo_client::contract::world::WorldContract;
 use num::bigint::BigUint;
 use num::{FromPrimitive, ToPrimitive};
+use rand::Rng;
 use starknet::accounts::SingleOwnerAccount;
 use starknet::core::types::{BlockId, BlockTag, FieldElement};
 use starknet::core::utils::cairo_short_string_to_felt;
@@ -21,6 +22,11 @@ use std::ops::Div;
 use std::str::FromStr;
 use tokio::sync::mpsc;
 use url::Url;
+
+pub fn rand_felt() -> FieldElement {
+    let mut rng = rand::thread_rng();
+    rng.gen::<u128>().into()
+}
 
 pub struct DojoPlugin;
 
