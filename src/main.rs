@@ -38,25 +38,25 @@ fn main() {
                     ..default()
                 }),
         )
-        .add_plugin(PanCamPlugin::default())
+        .add_plugins(PanCamPlugin::default())
         // .add_plugin(WorldInspectorPlugin::new().run_if(input_toggle_active(false, KeyCode::Tab))) // remove eguiplugin
-        .add_plugin(DefaultInspectorConfigPlugin) // Requires egui plugin
-        .add_plugin(EguiPlugin)
-        .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
+        .add_plugins(DefaultInspectorConfigPlugin) // Requires egui plugin
+        .add_plugins(EguiPlugin)
+        .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         // .add_plugin(LogDiagnosticsPlugin::default())
         // .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_plugin(CarPlugin)
-        .add_plugin(EnemyPlugin)
-        .add_plugin(PopulationPlugin)
-        .add_plugin(GuiPlugin)
+        .add_plugins(CarPlugin)
+        .add_plugins(EnemyPlugin)
+        .add_plugins(PopulationPlugin)
+        .add_plugins(GuiPlugin)
         // .add_plugin(RapierDebugRenderPlugin::default())
         .insert_resource(ClearColor(Color::rgb_u8(36, 36, 36)))
         // .insert_resource(ClearColor(Color::WHITE))
         // .insert_resource(Msaa::Off)
-        .add_startup_system(setup)
-        .add_system(bevy::window::close_on_esc)
-        .add_system(camera_follow_system)
-        .add_system(settings_system)
+        .add_systems(Startup, setup)
+        .add_systems(Update, bevy::window::close_on_esc)
+        .add_systems(Update, camera_follow_system)
+        .add_systems(Update, settings_system)
         .run();
 }
 

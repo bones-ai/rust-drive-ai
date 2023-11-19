@@ -26,9 +26,9 @@ pub struct BoundControlTruck;
 
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup)
-            .add_system(update_enemies)
-            .add_system(bound_control_system);
+        app.add_systems(Startup, setup)
+            .add_systems(Update, update_enemies)
+            .add_systems(Update, bound_control_system);
     }
 }
 
@@ -80,6 +80,7 @@ pub fn spawn_enemies(commands: &mut Commands, asset_server: &AssetServer) {
     let mut enemy_y = 800.0;
     for _ in 0..NUM_ENEMY_CARS {
         let enemy_type = EnemyType::random();
+        let et2 = enemy_type.clone();
         let enemy_scale = match enemy_type {
             EnemyType::Truck => 3.0,
             _ => 2.5,
@@ -92,6 +93,8 @@ pub fn spawn_enemies(commands: &mut Commands, asset_server: &AssetServer) {
         let x = rng.gen_range(743.0..1169.0);
         let y = enemy_y;
         enemy_y += 200.0;
+        let et = enemy_type.get_sprite();
+        let al = asset_server.load(et);
         commands.spawn((
             SpriteBundle {
                 transform: Transform::from_xyz(x, y, 0.0).with_scale(vec3(
@@ -99,7 +102,7 @@ pub fn spawn_enemies(commands: &mut Commands, asset_server: &AssetServer) {
                     enemy_scale,
                     1.0,
                 )),
-                texture: asset_server.load(enemy_type.get_sprite()),
+                texture: al, //asset_server.load(et), //enemy_type.get_sprite()),
                 ..default()
             },
             RigidBody::Dynamic,
@@ -165,7 +168,7 @@ impl EnemyType {
         all_vals[index].clone()
     }
 
-    fn get_sprite(&self) -> &str {
+    fn get_sprite(&self) -> &'static str {
         let mut rng = thread_rng();
         match self {
             EnemyType::Simple => {

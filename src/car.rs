@@ -4,7 +4,9 @@ use bevy::{
     math::{vec2, vec3},
     prelude::*,
 };
-use bevy_prototype_debug_lines::{DebugLines, DebugLinesPlugin};
+//use bevy_prototype_debug_lines::{DebugLines, DebugLinesPlugin};
+use bevy_prototype_lyon::prelude::*;
+use bevy_prototype_lyon::prelude::Path;
 use bevy_rapier2d::prelude::*;
 use rand::Rng;
 
@@ -60,17 +62,19 @@ pub struct CarBundle {
 
 impl Plugin for CarPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(DebugLinesPlugin::default())
+        app
+            //.add_plugin(DebugLinesPlugin::default())
+            .add_plugins(ShapePlugin)
             .register_type::<TurnSpeed>()
             .register_type::<Speed>()
             .insert_resource(RayCastSensors::default())
-            .add_startup_system(setup)
+            .add_systems(Startup, setup)
             // .add_system(car_manual_input_system)
-            .add_system(car_nn_controlled_system)
+            .add_systems(Update, car_nn_controlled_system)
             // .add_system(car_gas_system)
             // .add_system(car_steer_system)
-            .add_system(collision_events_system)
-            .add_system(sensors_system);
+            .add_systems(Update, collision_events_system)
+            .add_systems(Update, sensors_system);
     }
 }
 
@@ -103,7 +107,16 @@ fn position_based_movement_system(
     transform.translation += translation_delta;
 }
 
-fn setup(mut ray_cast_sensors: ResMut<RayCastSensors>) {
+fn setup(mut commands: Commands, mut ray_cast_sensors: ResMut<RayCastSensors>) {
+    let shape = shapes::RegularPolygon {
+        sides: 6,
+        feature: shapes::RegularPolygonFeature::Radius(200.0),
+        ..shapes::RegularPolygon::default()
+    };
+    commands.spawn((ShapeBundle { path: GeometryBuilder::build_as(&shape), ..default() },
+    Fill::color(Color::CYAN),
+    Stroke::new(Color::BLACK, 10.0),));
+
     // Pre compute the raycast directions
     let angle_per_ray = RAYCAST_SPREAD_ANGLE_DEG / (NUM_RAY_CASTS as f32) + 1.0;
     let mut current_angle = RAYCAST_START_ANGLE_DEG;
@@ -270,7 +283,7 @@ fn car_steer_system(
 }
 
 fn draw_ray_cast(
-    lines: &mut DebugLines,
+    lines: &mut Path,
     settings: &Settings,
     start: Vec3,
     end: Vec3,
@@ -283,17 +296,21 @@ fn draw_ray_cast(
     if start.y <= 700.0 && settings.is_hide_rays_at_start {
         return;
     }
+    //lines.0.
 
-    lines.line_colored(start, end, 0.0, color);
+    // MLM TODO
+    //lines.line_colored(start, end, 0.0, color);
 }
 
 fn sensors_system(
-    mut lines: ResMut<DebugLines>,
+    //mut lines: ResMut<DebugLines>,
     settings: Res<Settings>,
     ray_cast_sensors: Res<RayCastSensors>,
     rapier_context: Res<RapierContext>,
+    //mut q1: Query<&mut Path>,
     mut query: Query<(&Transform, &Velocity, &mut Brain, &Speed, &TurnSpeed), With<Car>>,
 ) {
+    //let lines = q1.iter().nth(0).unwrap();
     for (transform, velocity, mut brain, speed, turn_speed) in query.iter_mut() {
         let raycast_filter = CollisionGroups {
             memberships: Group::GROUP_1,
@@ -311,7 +328,8 @@ fn sensors_system(
             (x, y) = rotate_point(x, y, rot);
             let dest_vec = vec2(x, y);
             let end_point = calculate_endpoint(ray_pos, dest_vec, RAYCAST_MAX_TOI);
-            draw_ray_cast(&mut lines, &settings, ray_pos, end_point, Color::RED);
+            // MLM
+            //draw_ray_cast(&mut lines, &settings, ray_pos, end_point, Color::RED);
 
             let ray_pos_2d = vec2(ray_pos.x, ray_pos.y);
             if let Some((_, toi)) =
@@ -329,7 +347,8 @@ fn sensors_system(
                     continue;
                 }
 
-                draw_ray_cast(&mut lines, &settings, ray_pos, hit_point, Color::GREEN);
+                // MLM
+                //draw_ray_cast(&mut lines, &settings, ray_pos, hit_point, Color::GREEN);
             } else {
                 nn_inputs.push(1.0);
             }
