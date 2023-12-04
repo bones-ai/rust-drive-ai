@@ -4,23 +4,21 @@ use bevy::{
     math::{vec2, vec3},
     prelude::*,
 };
-use bevy_prototype_debug_lines::{DebugLines, DebugLinesPlugin};
 use bevy_rapier2d::prelude::*;
 use rand::Rng;
 
-use crate::nn::Net;
 use crate::*;
+use crate::nn::Net;
 
 pub struct CarPlugin;
 
 #[derive(Component)]
 pub struct Car;
 
-#[derive(Component)]
+#[derive(Component,Clone)]
 pub struct Brain {
     pub nn: Net,
     pub nn_outputs: Vec<Vec<f64>>,
-
     ray_inputs: Vec<f64>,
 }
 
@@ -37,7 +35,13 @@ pub struct Fitness(pub f32);
 struct RayCastSensors(Vec<(f32, f32)>);
 
 // wasd controls
-struct CarControls(bool, bool, bool, bool);
+#[derive(Copy, Clone)]
+struct CarControls {
+    w: bool,
+    a: bool,
+    s: bool,
+    d: bool,
+}
 
 #[derive(Bundle)]
 pub struct CarBundle {
@@ -58,32 +62,49 @@ pub struct CarBundle {
     collision_groups: CollisionGroups,
 }
 
+#[derive(Resource)]
+pub struct NNSave {
+    pub should_save: bool,
+    pub already_loaded: bool,
+}
+
+impl Default for NNSave {
+    fn default() -> Self {
+        Self {
+            should_save: true,
+            already_loaded: false,
+        }
+    }
+}
+
 impl Plugin for CarPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(DebugLinesPlugin::default())
+        app
             .register_type::<TurnSpeed>()
             .register_type::<Speed>()
             .insert_resource(RayCastSensors::default())
-            .add_startup_system(setup)
+            .insert_resource(NNSave::default())
+            .add_systems(Startup, setup)
             // .add_system(car_manual_input_system)
-            .add_system(car_nn_controlled_system)
+            .add_systems(Update, car_nn_controlled_system)
             // .add_system(car_gas_system)
             // .add_system(car_steer_system)
-            .add_system(collision_events_system)
-            .add_system(sensors_system);
+            .add_systems(Update, collision_events_system)
+            .add_systems(Update, sensors_system);
     }
 }
 
 fn position_based_movement_system(
-    controls: CarControls, 
-    transform: &mut Transform
+    controls: CarControls,
+    transform: &mut Transform,
+    delta_sec: f32,
 ) {
-    let w_key = controls.0;
-    let a_key = controls.1;
-    let s_key = controls.2;
-    let d_key = controls.3;
+    let w_key = controls.w;
+    let a_key = controls.a;
+    let s_key = controls.s;
+    let d_key = controls.d;
 
-    let time_step = 1.0 / 60.0;
+    let time_step = delta_sec; //1.0 / 60.0;
     let mut rotation_factor = 0.0;
     let mut movement_factor = 0.0;
 
@@ -97,7 +118,7 @@ fn position_based_movement_system(
     }
 
     transform.rotate_z(rotation_factor * 5.0 * time_step);
-    let movement_direction = transform.rotation * Vec3::Y;
+    let movement_direction = transform.up(); //transform.rotation * Vec3::Y;
     let movement_distance = movement_factor;
     let translation_delta = movement_direction * movement_distance;
     transform.translation += translation_delta;
@@ -148,9 +169,9 @@ fn car_nn_controlled_system(
         //  nn_out = brain.nn.predict(&brain.ray_inputs).pop().unwrap();
 
         // let w_key = nn_out[0] >= NN_W_ACTIVATION_THRESHOLD;
-        let w_key = true;
+        let mut w_key = true;
         // let s_key = nn_out[2] >= NN_S_ACTIVATION_THRESHOLD;
-        let s_key = false;
+        let mut s_key = false;
         let mut a_key = false;
         let mut d_key = false;
 
@@ -159,6 +180,11 @@ fn car_nn_controlled_system(
         } else {
             d_key = true;
         }
+        if nn_out[2] >= 0.9 {
+            s_key = true;
+        } else {
+            w_key = true;
+        }
 
         // update_car_input(
         //     CarControls(w_key, a_key, s_key, d_key),
@@ -166,7 +192,9 @@ fn car_nn_controlled_system(
         //     &mut speed,
         //     &time,
         // );
-        position_based_movement_system(CarControls(w_key, a_key, s_key, d_key), &mut transform);
+        let time_delta = time.delta_seconds();
+        let controls = CarControls{w: w_key, a: a_key, s: s_key, d: d_key};
+        position_based_movement_system(controls, &mut transform, time_delta);
     }
 }
 
@@ -181,15 +209,18 @@ fn car_manual_input_system(
         let a_key = keyboard_input.pressed(KeyCode::A);
         let s_key = keyboard_input.pressed(KeyCode::S);
         let d_key = keyboard_input.pressed(KeyCode::D);
+        let controls = CarControls {
+                w: w_key, a: a_key, s: s_key, d: d_key,
+            };
+
+        let time_delta = time.delta_seconds();
         update_car_input(
-            CarControls(
-                w_key, a_key, s_key, d_key
-            ),
+            controls,
             &mut turn_speed,
             &mut speed,
-            &time,
+            time_delta,
         );
-        position_based_movement_system(CarControls(w_key, a_key, s_key, d_key), &mut transform);
+        position_based_movement_system(controls, &mut transform, time_delta);
     }
 }
 
@@ -197,12 +228,12 @@ fn update_car_input(
     controls: CarControls,
     turn_speed: &mut TurnSpeed,
     speed: &mut Speed,
-    time: &Time,
+    time_delta: f32,
 ) {
-    let w_key = controls.0;
-    let a_key = controls.1;
-    let s_key = controls.2;
-    let d_key = controls.3;
+    let w_key = controls.w;
+    let a_key = controls.a;
+    let s_key = controls.s;
+    let d_key = controls.d;
 
     turn_speed.0 = if a_key {
         TURN_SPEED
@@ -217,19 +248,19 @@ fn update_car_input(
         if speed.0.abs() <= 30.0 {
             0.0
         } else {
-            speed.0 - FRICTION * time.delta_seconds() * 1.2
+            speed.0 - FRICTION * time_delta * 1.2
         }
     } else if w_key {
-        speed.0 + CAR_THRUST * time.delta_seconds()
+        speed.0 + CAR_THRUST * time_delta
     } else {
         if speed.0.abs() <= 30.0 {
             // Avoid speed from over shooting
             // and be non zero all the time
             0.0
         } else if speed.0 > 0.0 {
-            speed.0 - FRICTION * time.delta_seconds()
+            speed.0 - FRICTION * time_delta
         } else if speed.0 < 0.0 {
-            speed.0 + FRICTION * time.delta_seconds()
+            speed.0 + FRICTION * time_delta
         } else {
             0.0
         }
@@ -243,15 +274,16 @@ fn car_gas_system(
     mut query: Query<(&Transform, &Speed, &mut Velocity), With<Car>>,
 ) {
     for (transform, speed, mut velocity) in query.iter_mut() {
+        let y_dir = transform.local_y();
         if speed.0 == 0.0 {
-            let direction = transform.local_y();
-            velocity.linvel = vec2(direction.x, direction.y) * 0.0000001;
+            let direction = y_dir;
+            velocity.linvel = direction.truncate() * 0.0000001;
             return;
         }
 
-        let translation_delta = transform.local_y() * speed.0;
+        let translation_delta = y_dir * speed.0;
         velocity.linvel =
-            vec2(translation_delta.x, translation_delta.y) * 25.0 * time.delta_seconds();
+            translation_delta.truncate() * 25.0 * time.delta_seconds();
     }
 }
 
@@ -270,78 +302,84 @@ fn car_steer_system(
 }
 
 fn draw_ray_cast(
-    lines: &mut DebugLines,
     settings: &Settings,
-    start: Vec3,
-    end: Vec3,
+    start: Vec2,
+    end: Vec2,
     color: Color,
+    gizmos: &mut Gizmos,
 ) {
     if !settings.is_show_rays {
         return;
     }
-
-    if start.y <= 700.0 && settings.is_hide_rays_at_start {
+    if start.y <= 2000.0 && settings.is_hide_rays_at_start {
         return;
     }
-
-    lines.line_colored(start, end, 0.0, color);
+    gizmos.line_2d(start, end, color);
 }
 
 fn sensors_system(
-    mut lines: ResMut<DebugLines>,
     settings: Res<Settings>,
     ray_cast_sensors: Res<RayCastSensors>,
     rapier_context: Res<RapierContext>,
+    mut gizmos: Gizmos,
     mut query: Query<(&Transform, &Velocity, &mut Brain, &Speed, &TurnSpeed), With<Car>>,
 ) {
+    let raycast_filter = CollisionGroups {
+        memberships: Group::GROUP_1,
+        filters: Group::GROUP_2,
+    };
+    let filter = QueryFilter::default().groups(raycast_filter);
     for (transform, velocity, mut brain, speed, turn_speed) in query.iter_mut() {
-        let raycast_filter = CollisionGroups {
-            memberships: Group::GROUP_1,
-            filters: Group::GROUP_2,
-        };
-        let filter = QueryFilter::default().groups(raycast_filter);
         let ray_pos = transform.translation;
+        let ray_pos_2d = ray_pos.xy();
         let mut nn_inputs = Vec::new();
 
         // Ray casts
         // let rot = velocity.linvel.y.atan2(velocity.linvel.x) - PI / 2.0;
-        let rot = transform.rotation.z;
+        // let rot = transform.rotation.z;
         // let rot = turn_speed.0;
-        for (mut x, mut y) in ray_cast_sensors.0.iter() {
-            (x, y) = rotate_point(x, y, rot);
-            let dest_vec = vec2(x, y);
-            let end_point = calculate_endpoint(ray_pos, dest_vec, RAYCAST_MAX_TOI);
-            draw_ray_cast(&mut lines, &settings, ray_pos, end_point, Color::RED);
+        for (idx, (x, y)) in ray_cast_sensors.0.iter().enumerate() {
+            let ray_len = match idx % 3 {
+                0 => RAYCAST_MAX_TOI,
+                1 => RAYCAST_MAX_TOI / 2.0,
+                _ => RAYCAST_MAX_TOI / 3.0,
+            };
+            // let ray_len = if idx & 0b1 == 0 { RAYCAST_MAX_TOI } else { RAYCAST_MAX_TOI / 2f32 };
 
-            let ray_pos_2d = vec2(ray_pos.x, ray_pos.y);
-            if let Some((_, toi)) =
-                rapier_context.cast_ray(ray_pos_2d, dest_vec, RAYCAST_MAX_TOI, false, filter)
-            {
-                // The first collider hit has the entity `entity` and it hit after
-                // the ray travelled a distance equal to `ray_dir * toi`.
-                let hit_point = ray_pos_2d + dest_vec * toi;
-                let hit_point = vec3(hit_point.x, hit_point.y, 0.0);
+            let ray_dir_2d = (transform.rotation * vec2(*x,*y).extend(0.0)).truncate().normalize();//.truncate();
+            // let (x_r, y_r) = rotate_point(*x, *y, rot);
+            // let ray_dir_2d = vec2(x_r, y_r).normalize();
 
-                // Invalidate when hit length more than max toi
-                let dist_to_hit = ray_pos.distance(hit_point);
-                nn_inputs.push(dist_to_hit as f64 / RAYCAST_MAX_TOI as f64);
-                if dist_to_hit > RAYCAST_MAX_TOI {
-                    continue;
-                }
+            let ray_end_point_2d = ray_pos_2d + ray_dir_2d * ray_len;
+            let nn_input =
+                if let Some((_, toi)) =
+                    rapier_context.cast_ray(ray_pos_2d, ray_dir_2d, ray_len, false, filter)
+                {
+                    // The first collider hit has the entity `entity` and it hit after
+                    // the ray travelled a distance equal to `ray_dir * toi`.
+                    // let dist_to_hit = ray_dir_2d * toi;
+                    let dist_to_hit = toi;
+                    // let hit_point_2d = ray_pos_2d + ray_dir_2d * toi;
 
-                draw_ray_cast(&mut lines, &settings, ray_pos, hit_point, Color::GREEN);
-            } else {
-                nn_inputs.push(1.0);
-            }
+                    // Invalidate when hit length more than max toi
+                    // let dist_to_hit = ray_pos_2d.distance(hit_point_2d);
+                    let ai_value = dist_to_hit as f64 / ray_len as f64 * 0.75f64; // to differentiate a hit v.s. a non-hit
+                    let ray_color =
+                        if dist_to_hit > RAYCAST_MAX_TOI {
+                            Color::RED
+                        } else {
+                            Color::GREEN
+                        };
+                    draw_ray_cast(&settings, ray_pos_2d, ray_end_point_2d, ray_color, &mut gizmos);
+                    ai_value
+                } else {
+                    draw_ray_cast(&settings, ray_pos_2d, ray_end_point_2d, Color::RED, &mut gizmos);
+                    1.0
+                };
+            nn_inputs.push(nn_input);
         }
-
         brain.ray_inputs = nn_inputs;
     }
-}
-
-fn calculate_endpoint(pos: Vec3, direction: Vec2, length: f32) -> Vec3 {
-    let dir = direction.normalize();
-    vec3(pos[0] + dir[0] * length, pos[1] + dir[1] * length, 0.0)
 }
 
 fn rotate_point(x: f32, y: f32, angle_rad: f32) -> (f32, f32) {
@@ -362,7 +400,16 @@ fn rotate_point(x: f32, y: f32, angle_rad: f32) -> (f32, f32) {
 }
 
 impl CarBundle {
-    pub fn new(asset_server: &AssetServer) -> Self {
+    fn create_bundle() -> Vec<usize> {
+        vec![
+            NUM_RAY_CASTS as usize,
+            NUM_HIDDEN_NODES,
+            NUM_HIDDEN_NODES_2,
+            NUM_OUPUT_NODES,
+        ]
+    }
+
+    pub fn with_brain(asset_server: &AssetServer, nn: Net) -> Self {
         let mut rng = rand::thread_rng();
         let rand_x = rng.gen_range(800.0..1100.0);
 
@@ -376,11 +423,7 @@ impl CarBundle {
             car: Car,
             fitness: Fitness(0.0),
             brain: Brain {
-                nn: Net::new(vec![
-                    NUM_RAY_CASTS as usize,
-                    NUM_HIDDEN_NODES,
-                    NUM_OUPUT_NODES,
-                ]),
+                nn,
                 ray_inputs: Vec::new(),
                 nn_outputs: Vec::new(),
             },
@@ -404,9 +447,15 @@ impl CarBundle {
         }
     }
 
-    pub fn with_brain(asset_server: &AssetServer, brain: &Net) -> Self {
-        let mut car = CarBundle::new(asset_server);
-        car.brain.nn = brain.clone();
-        car
+    pub fn load_brain() -> Result<Net,Net> {
+        let nn_items = Self::create_bundle();
+        let sample = Net::new(&nn_items);
+        Net::load_net(&sample, &nn_items, NN_SAVE_FILE)
+    }
+
+    pub fn new(asset_server: &AssetServer) -> Self {
+        let nn = Net::new(&Self::create_bundle());
+        Self::with_brain(asset_server, nn)
     }
 }
+

@@ -1,14 +1,11 @@
 use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     math::vec3,
     prelude::*,
-    window::{PresentMode, WindowMode},
 };
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_rapier2d::{
     prelude::{Collider, NoUserData, RapierConfiguration, RapierPhysicsPlugin, RigidBody},
-    render::RapierDebugRenderPlugin,
 };
 
 use steering::{
@@ -20,6 +17,8 @@ use steering::{
     enemy::{spawn_bound_trucks, EnemyPlugin},
     *,
 };
+
+
 
 fn main() {
     App::new()
@@ -38,27 +37,31 @@ fn main() {
                     ..default()
                 }),
         )
-        .add_plugin(PanCamPlugin::default())
+        .add_plugins(PanCamPlugin::default())
         // .add_plugin(WorldInspectorPlugin::new().run_if(input_toggle_active(false, KeyCode::Tab))) // remove eguiplugin
-        .add_plugin(DefaultInspectorConfigPlugin) // Requires egui plugin
-        .add_plugin(EguiPlugin)
-        .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
+        .add_plugins(DefaultInspectorConfigPlugin) // Requires egui plugin
+        .add_plugins(EguiPlugin)
+        .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         // .add_plugin(LogDiagnosticsPlugin::default())
         // .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_plugin(CarPlugin)
-        .add_plugin(EnemyPlugin)
-        .add_plugin(PopulationPlugin)
-        .add_plugin(GuiPlugin)
+        .add_plugins(CarPlugin)
+        .add_plugins(EnemyPlugin)
+        .add_plugins(PopulationPlugin)
+        .add_plugins(GuiPlugin)
         // .add_plugin(RapierDebugRenderPlugin::default())
         .insert_resource(ClearColor(Color::rgb_u8(36, 36, 36)))
         // .insert_resource(ClearColor(Color::WHITE))
         // .insert_resource(Msaa::Off)
-        .add_startup_system(setup)
-        .add_system(bevy::window::close_on_esc)
-        .add_system(camera_follow_system)
-        .add_system(settings_system)
+        .add_systems(Startup, setup)
+        .add_systems(Update, bevy::window::close_on_esc)
+        .add_systems(Update, camera_follow_system)
+        .add_systems(Update, settings_system)
         .run();
 }
+
+#[derive(Component)]
+struct Cam2;
+
 
 fn setup(
     mut commands: Commands,
@@ -68,10 +71,10 @@ fn setup(
     rapier_config.gravity = Vec2::ZERO;
 
     commands
-        .spawn(Camera2dBundle {
+        .spawn((Camera2dBundle {
             transform: Transform::from_xyz(WINDOW_WIDTH / 2.0, WINDOW_HEIGHT / 2.0, 0.0),
             ..default()
-        })
+        }, Cam2))
         .insert(PanCam::default());
 
     spawn_roads(&mut commands, &asset_server);
@@ -81,10 +84,10 @@ fn setup(
 fn camera_follow_system(
     settings: Res<Settings>,
     max_distance_travelled: Res<MaxDistanceTravelled>,
-    mut cam_query: Query<(&Camera, &mut Transform), Without<Car>>,
+    mut cam_query: Query<(&Camera, &mut Transform), With<Cam2>>,
 ) {
-    let (_, mut cam_transform) = cam_query.get_single_mut().unwrap();
     if settings.is_camera_follow {
+        let (_, mut cam_transform) = cam_query.get_single_mut().unwrap();
         cam_transform.translation = cam_transform.translation.lerp(
             vec3(cam_transform.translation.x, max_distance_travelled.0, 0.0),
             0.05,

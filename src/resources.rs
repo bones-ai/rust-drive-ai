@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use crate::nn::Net;
 
 #[derive(Resource, Default)]
 pub struct SimStats {
@@ -15,10 +16,12 @@ pub struct Settings {
     pub start_next_generation: bool,
     pub restart_sim: bool,
     pub is_camera_follow: bool,
+    pub should_save: bool,
+    pub already_loaded: bool,
 }
 
 #[derive(Resource, Default)]
-pub struct BrainToDisplay(pub Vec<Vec<f64>>);
+pub struct BrainToDisplay(pub Vec<Vec<f64>>, pub Net);
 
 #[derive(Resource)]
 pub struct MaxDistanceTravelled(pub f32);
@@ -31,6 +34,8 @@ impl Default for Settings {
             start_next_generation: false,
             restart_sim: false,
             is_camera_follow: true,
+            should_save: true,
+            already_loaded: false,
         }
     }
 }
