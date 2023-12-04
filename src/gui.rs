@@ -260,23 +260,27 @@ fn nn_viz_system(mut contexts: EguiContexts, best_brain: Res<BrainToDisplay>) {
 
     let ctx = contexts.ctx_mut();
     let mut shapes = Vec::new();
-    let tot_height = 700.0;
+    let tot_height = 1400.0;
 
     // NN viz points
     let points1 = get_nn_viz_points(NUM_RAY_CASTS as usize, tot_height - 100.0);
     let points2 = get_nn_viz_points(NUM_HIDDEN_NODES as usize, tot_height);
+    let points2b = get_nn_viz_points(NUM_HIDDEN_NODES_2 as usize, tot_height);
     let points3 = get_nn_viz_points(NUM_OUPUT_NODES as usize, tot_height - 300.0);
     // NN ouput
     let values1 = best_brain.0[0].clone();
     let values2 = best_brain.0[1].clone();
-    let values3 = best_brain.0[2].clone();
+    let values2b = best_brain.0[2].clone();
+    let values3 = best_brain.0[3].clone();
     // x's
-    let x1 = 75.0;
-    let x2 = 225.0;
+    let x1 = 25.0;
+    let x2 = 125.0;
+    let x2b = 250.0;
     let x3 = 375.0;
     // Padding
     let padding1 = 100.0;
     let padding2 = 50.0;
+    let padding2b = 50.0;
     let padding3 = 200.0;
     // colors
     let colors1: Vec<Color32> = values1
@@ -301,12 +305,48 @@ fn nn_viz_system(mut contexts: EguiContexts, best_brain: Res<BrainToDisplay>) {
             }
         })
         .collect();
-    let mut colors3 = vec![Color32::RED, Color32::RED, Color32::RED];
-    if values3[1] >= 0.5 {
-        colors3[0] = Color32::GREEN;
-    } else {
-        colors3[1] = Color32::GREEN;
+    let colors2b: Vec<Color32> = values2b
+        .iter()
+        .rev()
+        .map(|v| {
+            if *v > 0.5 {
+                Color32::GREEN
+            } else {
+                Color32::RED
+            }
+        })
+        .collect();
+    // let mut colors3 = vec![Color32::RED, Color32::RED];
+    let colors3: Vec<Color32> = values3
+        .iter()
+        .rev()
+        .map(|v| {
+            if *v > 0.5 {
+                Color32::GREEN
+            } else {
+                Color32::RED
+            }
+        })
+        .collect();
+    // if values3[1] >= 0.5 {
+    //     colors3[0] = Color32::GREEN;
+    // } else {
+    //     colors3[1] = Color32::GREEN;
+    // }
+    // if values3[2] >= 0.5 {
+    //     colors3[2] = Color32::GREEN;
+    // }
+    // w a s d
+    let mut colors_keys = vec![Color32::RED ; 4];
+    {
+        let i = if values3[0] >= 0.5 { 1 } else { 3 };
+        colors_keys[i] = Color32::GREEN;
     }
+    {
+        let i = if values3[1] >= 0.5 { 0 } else { 2 };
+        colors_keys[i] = Color32::GREEN;
+    }
+
 
     // if values3[0] >= NN_W_ACTIVATION_THRESHOLD {
     //     colors3[0] = Color32::GREEN;
@@ -329,34 +369,62 @@ fn nn_viz_system(mut contexts: EguiContexts, best_brain: Res<BrainToDisplay>) {
         }
     }
 
-    // layer 2 -> 3 lines
+    // layer 2 -> 2b lines
     for (p2, c2) in points2.iter().zip(colors2.iter()) {
-        for (p3, c3) in points3.iter().zip(colors3.iter()) {
+        for (p2b, c2b) in points2b.iter().zip(colors2b.iter()) {
             let mut color = Color32::RED;
-            if are_colors_equad(*c2, *c3) {
+            if are_colors_equad(*c2, *c2b) {
                 color = Color32::GREEN;
             }
             shapes.push(egui::Shape::line(
-                vec![pos2(x2, *p2 + padding2), pos2(x3, *p3 + padding3)],
+                vec![pos2(x2, *p2 + padding2), pos2(x2b, *p2b + padding2b)],
                 Stroke { width: 0.3, color },
             ));
         }
     }
 
-    // layer 1
-    for (p, c) in points1.iter().zip(colors1.iter()) {
-        shapes.push(get_nn_node_shape(x1, *p + padding1, *c));
-    }
-    // layer 2
-    for (p, c) in points2.iter().zip(colors2.iter()) {
-        shapes.push(get_nn_node_shape(x2, *p + padding2, *c));
-    }
-    // layer 3
-    for (p, c) in points3.iter().zip(colors3.iter()) {
-        shapes.push(get_nn_node_shape(x3, *p + padding3, *c));
+    // layer 2 -> 3 lines
+    for (p2b, c2b) in points2b.iter().zip(colors2b.iter()) {
+        for (p3, c3) in points3.iter().zip(colors3.iter()) {
+            let mut color = Color32::RED;
+            if are_colors_equad(*c2b, *c3) {
+                color = Color32::GREEN;
+            }
+            shapes.push(egui::Shape::line(
+                vec![pos2(x2b, *p2b + padding2b), pos2(x3, *p3 + padding3)],
+                Stroke { width: 0.3, color },
+            ));
+        }
     }
 
-    shapes.append(&mut arrow_keys_viz_system(colors3));
+    let push_shapes = |shapes: &mut Vec<Shape>,points: &[f32],colors:&[Color32],x0:f32,padding:f32| {
+        for (p, c) in points.iter().zip(colors.iter()) {
+            shapes.push(get_nn_node_shape(x0, *p + padding, *c));
+        }
+    };
+
+    // layer 1
+    push_shapes(&mut shapes,&points1,&colors1,x1,padding1);
+    // for (p, c) in points1.iter().zip(colors1.iter()) {
+    //     shapes.push(get_nn_node_shape(x1, *p + padding1, *c));
+    // }
+    // layer 2
+    push_shapes(&mut shapes,&points2,&colors2,x2,padding2);
+    // for (p, c) in points2.iter().zip(colors2.iter()) {
+    //     shapes.push(get_nn_node_shape(x2, *p + padding2, *c));
+    // }
+    // layer 2b
+    push_shapes(&mut shapes,&points2b,&colors2b,x2b,padding2b);
+    // for (p, c) in points2b.iter().zip(colors2b.iter()) {
+    //     shapes.push(get_nn_node_shape(x2b, *p + padding2b, *c));
+    // }
+    // layer 3
+    push_shapes(&mut shapes,&points3,&colors3,x3,padding3);
+    // for (p, c) in points3.iter().zip(colors3.iter()) {
+    //     shapes.push(get_nn_node_shape(x3, *p + padding3, *c));
+    // }
+
+    shapes.append(&mut arrow_keys_viz_system(&colors_keys));
     egui::SidePanel::left("left")
         .min_width(400.0)
         .show(ctx, |ui| {
@@ -398,10 +466,10 @@ fn car_progress_system(
     style.bottom = Val::Percent(stats.max_current_score - 3.0);
 }
 
-fn arrow_keys_viz_system(colors: Vec<Color32>) -> Vec<Shape> {
+fn arrow_keys_viz_system(colors: &[Color32]) -> Vec<Shape> {
     // wasd buttons
     let x = 75.0;
-    let y = 800.0;
+    let y = 1600.0;
     let mut shapes = Vec::new();
 
     // w
@@ -411,7 +479,8 @@ fn arrow_keys_viz_system(colors: Vec<Color32>) -> Vec<Shape> {
             max: egui::pos2(150.0 + x, 150.0 + y),
         },
         10.0,
-        Color32::GREEN,
+                colors[0],
+        // Color32::GREEN,
     ));
     // a
     shapes.push(egui::Shape::rect_filled(
@@ -420,7 +489,7 @@ fn arrow_keys_viz_system(colors: Vec<Color32>) -> Vec<Shape> {
             max: egui::pos2(90.0 + x, 210.0 + y),
         },
         10.0,
-        colors[0],
+        colors[1],
     ));
     // s
     shapes.push(egui::Shape::rect_filled(
@@ -429,7 +498,7 @@ fn arrow_keys_viz_system(colors: Vec<Color32>) -> Vec<Shape> {
             max: egui::pos2(150.0 + x, 210.0 + y),
         },
         10.0,
-        Color32::RED,
+        colors[2],
     ));
     // d
     shapes.push(egui::Shape::rect_filled(
@@ -438,7 +507,7 @@ fn arrow_keys_viz_system(colors: Vec<Color32>) -> Vec<Shape> {
             max: egui::pos2(210.0 + x, 210.0 + y),
         },
         10.0,
-        colors[1],
+        colors[3],
     ));
 
     shapes

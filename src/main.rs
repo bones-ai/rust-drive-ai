@@ -1,14 +1,11 @@
 use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     math::vec3,
     prelude::*,
-    window::{PresentMode, WindowMode},
 };
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_pancam::{PanCam, PanCamPlugin};
 use bevy_rapier2d::{
     prelude::{Collider, NoUserData, RapierConfiguration, RapierPhysicsPlugin, RigidBody},
-    render::RapierDebugRenderPlugin,
 };
 
 use steering::{
@@ -20,6 +17,8 @@ use steering::{
     enemy::{spawn_bound_trucks, EnemyPlugin},
     *,
 };
+
+
 
 fn main() {
     App::new()
@@ -60,6 +59,10 @@ fn main() {
         .run();
 }
 
+#[derive(Component)]
+struct Cam2;
+
+
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -68,10 +71,10 @@ fn setup(
     rapier_config.gravity = Vec2::ZERO;
 
     commands
-        .spawn(Camera2dBundle {
+        .spawn((Camera2dBundle {
             transform: Transform::from_xyz(WINDOW_WIDTH / 2.0, WINDOW_HEIGHT / 2.0, 0.0),
             ..default()
-        })
+        }, Cam2))
         .insert(PanCam::default());
 
     spawn_roads(&mut commands, &asset_server);
@@ -81,10 +84,10 @@ fn setup(
 fn camera_follow_system(
     settings: Res<Settings>,
     max_distance_travelled: Res<MaxDistanceTravelled>,
-    mut cam_query: Query<(&Camera, &mut Transform), Without<Car>>,
+    mut cam_query: Query<(&Camera, &mut Transform), With<Cam2>>,
 ) {
-    let (_, mut cam_transform) = cam_query.get_single_mut().unwrap();
     if settings.is_camera_follow {
+        let (_, mut cam_transform) = cam_query.get_single_mut().unwrap();
         cam_transform.translation = cam_transform.translation.lerp(
             vec3(cam_transform.translation.x, max_distance_travelled.0, 0.0),
             0.05,

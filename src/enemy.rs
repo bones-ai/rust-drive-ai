@@ -2,6 +2,7 @@ use bevy::{
     math::{vec2, vec3},
     prelude::*,
 };
+use bevy::window::PrimaryWindow;
 use bevy_rapier2d::prelude::*;
 use rand::{thread_rng, Rng};
 
@@ -28,12 +29,15 @@ impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup)
             .add_systems(Update, update_enemies)
+            .add_systems( Update, click_new_enemy)
             .add_systems(Update, bound_control_system);
+
     }
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     spawn_enemies(&mut commands, &asset_server);
+
 }
 
 fn update_enemies(
@@ -72,52 +76,74 @@ fn update_enemies(
 
 fn bound_control_system(mut query: Query<&mut Transform, With<BoundControlTruck>>) {
     for mut transform in query.iter_mut() {
-        transform.translation.y += 1.0;
+        transform.translation.y += 2.0;
     }
+}
+
+pub fn click_new_enemy(mut commands:  Commands, mut asset_server: ResMut<AssetServer>, buttons: Res<Input<MouseButton>>,
+q_windows: Query<&Window, With<PrimaryWindow>>, q_camera: Query<(&Camera, &GlobalTransform)>) {
+    if buttons.just_pressed(MouseButton::Right) {
+        if let Some(pos) = q_windows.single().cursor_position() {
+            let (cam,cam_xform) = q_camera.single();
+            if let Some(world_pos) = cam.viewport_to_world_2d(cam_xform, pos) {
+                spawn_enemy(&mut commands, world_pos, &mut *asset_server)
+            }
+        }
+    }
+}
+
+fn spawn_enemy(commands: &mut Commands, enemy_pos: Vec2, asset_server: &AssetServer) {
+    let Vec2 {x, y} = enemy_pos;
+    // let y = enemy_pos.y;
+    let enemy_type = EnemyType::random();
+    //let et2 = enemy_type.clone();
+    let enemy_scale = match enemy_type {
+        EnemyType::Truck => 3.0,
+        _ => 2.5,
+    };
+    let collider = match enemy_type {
+        EnemyType::Truck => Collider::cuboid(6.0, 15.0),
+        _ => Collider::cuboid(4.0, 8.0),
+    };
+    // let mut rng = rand::thread_rng();
+    // let x = rng.gen_range(743.0..1169.0);
+    // let y = enemy_y;
+    // enemy_y += 200.0;
+    let et = enemy_type.get_sprite();
+    let al = asset_server.load(et);
+    commands.spawn((
+        SpriteBundle {
+            transform: Transform::from_xyz(x, y, 0.0).with_scale(vec3(
+                enemy_scale,
+                enemy_scale,
+                1.0,
+            )),
+            texture: al, //asset_server.load(et), //enemy_type.get_sprite()),
+            ..default()
+        },
+        RigidBody::Dynamic,
+        Velocity::zero(),
+        ColliderMassProperties::Mass(1.0),
+        Friction::new(100.0),
+        ActiveEvents::COLLISION_EVENTS,
+        collider,
+        Damping {
+            angular_damping: 2.0,
+            linear_damping: 2.0,
+        },
+        Enemy { is_hit: false },
+        enemy_type,
+    ));
 }
 
 pub fn spawn_enemies(commands: &mut Commands, asset_server: &AssetServer) {
     let mut enemy_y = 800.0;
     for _ in 0..NUM_ENEMY_CARS {
-        let enemy_type = EnemyType::random();
-        let et2 = enemy_type.clone();
-        let enemy_scale = match enemy_type {
-            EnemyType::Truck => 3.0,
-            _ => 2.5,
-        };
-        let collider = match enemy_type {
-            EnemyType::Truck => Collider::cuboid(6.0, 15.0),
-            _ => Collider::cuboid(4.0, 8.0),
-        };
         let mut rng = rand::thread_rng();
         let x = rng.gen_range(743.0..1169.0);
         let y = enemy_y;
         enemy_y += 200.0;
-        let et = enemy_type.get_sprite();
-        let al = asset_server.load(et);
-        commands.spawn((
-            SpriteBundle {
-                transform: Transform::from_xyz(x, y, 0.0).with_scale(vec3(
-                    enemy_scale,
-                    enemy_scale,
-                    1.0,
-                )),
-                texture: al, //asset_server.load(et), //enemy_type.get_sprite()),
-                ..default()
-            },
-            RigidBody::Dynamic,
-            Velocity::zero(),
-            ColliderMassProperties::Mass(1.0),
-            Friction::new(100.0),
-            ActiveEvents::COLLISION_EVENTS,
-            collider,
-            Damping {
-                angular_damping: 2.0,
-                linear_damping: 2.0,
-            },
-            Enemy { is_hit: false },
-            enemy_type,
-        ));
+        spawn_enemy(commands, Vec2::new(x, enemy_y), asset_server);
     }
 }
 

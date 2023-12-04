@@ -7,13 +7,17 @@ edition = "2021"
 
 [dependencies]
 egui_plot="0.23.0"
-bevy = { version = "0.12.0" }
+#bevy = { version = "0.12.0", features = [ "dynamic_linking"] }
+# use cargo run --features "dynamic_linking" --profile {dev,release,release-lot}
+bevy = { version = "0.12.0"}
 bevy-inspector-egui = "0.21.0"
 bevy_pancam = "0.10.0"
 #bevy_prototype_debug_lines = "*"#0.10.1"
-bevy_prototype_lyon="*"
+#bevy_prototype_lyon="*"
 bevy_rapier2d = "0.23.0"
 rand = "0.8.5"
+bincode2="*"
+serde="*"
 
 [workspace]
 resolver = "2" # Important! wgpu/Bevy needs this!
@@ -25,3 +29,18 @@ opt-level = 1
 # Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
+
+[profile.release]
+opt-level = 3
+#panic = "abort"
+strip = true
+[profile.release-lto]
+inherits = "release"
+lto=true
+[profile.release-s]
+inherits = "release"
+opt-level = "s"
+[profile.release-lto-s]
+inherits = "release"
+opt-level = "s"
+lto=true
